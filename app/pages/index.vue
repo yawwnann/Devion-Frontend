@@ -1,5 +1,28 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { Line, Doughnut } from "vue-chartjs";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 /* =====================
    Types
@@ -19,6 +42,25 @@ interface GithubRepo {
   url: string;
 }
 
+interface Project {
+  id: string;
+  name: string;
+  status: string;
+  order: string | null;
+  information: string | null;
+  createdAt: string;
+  category?: {
+    id: string;
+    name: string;
+    color: string;
+  } | null;
+  payment?: {
+    id: string;
+    name: string;
+    color: string;
+  } | null;
+}
+
 /* =====================
    Composables
 ===================== */
@@ -30,6 +72,7 @@ const { user } = useAuth();
 ===================== */
 const pages = ref<Page[]>([]);
 const githubRepos = ref<GithubRepo[]>([]);
+const projects = ref<Project[]>([]);
 const loading = ref(true);
 
 /* =====================
@@ -37,16 +80,19 @@ const loading = ref(true);
 ===================== */
 onMounted(async () => {
   try {
-    const [pagesData, reposData] = await Promise.all([
+    const [pagesData, reposData, projectsData] = await Promise.all([
       api.get<Page[]>("/pages"),
       api.get<GithubRepo[]>("/github/repos"),
+      api.get<Project[]>("/projects"),
     ]);
 
     pages.value = pagesData;
     githubRepos.value = reposData;
+    projects.value = projectsData;
 
     console.log("📄 Pages loaded:", pages.value);
     console.log("🐙 Repos loaded:", githubRepos.value);
+    console.log("📊 Projects loaded:", projects.value);
   } catch (error) {
     console.error("Failed to load dashboard data:", error);
   } finally {
@@ -64,6 +110,121 @@ const totalStars = computed(() => {
 const publishedPages = computed(() => {
   return pages.value.filter((p) => p.isPublished).length;
 });
+
+const projectStats = computed(() => {
+  const total = projects.value.length;
+  const todo = projects.value.filter((p) => p.status === "TODO").length;
+  const inProgress = projects.value.filter(
+    (p) => p.status === "IN_PROGRESS"
+  ).length;
+  const done = projects.value.filter((p) => p.status === "DONE").length;
+  return { total, todo, inProgress, done };
+});
+
+// Projects per month (last 6 months)
+const projectsPerMonth = computed(() => {
+  const months = [];
+  const counts = [];
+  const now = new Date();
+
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthName = date.toLocaleDateString("en-US", { month: "short" });
+    months.push(monthName);
+
+    const count = projects.value.filter((p) => {
+      const projectDate = new Date(p.createdAt);
+      return (
+        projectDate.getMonth() === date.getMonth() &&
+        projectDate.getFullYear() === date.getFullYear()
+      );
+    }).length;
+    counts.push(count);
+  }
+
+  return { months, counts };
+});
+
+// Projects by category
+const projectsByCategory = computed(() => {
+  const categoryMap = new Map<string, number>();
+
+  projects.value.forEach((p) => {
+    if (p.category) {
+      const name = p.category.name;
+      categoryMap.set(name, (categoryMap.get(name) || 0) + 1);
+    } else {
+      categoryMap.set(
+        "Uncategorized",
+        (categoryMap.get("Uncategorized") || 0) + 1
+      );
+    }
+  });
+
+  return {
+    labels: Array.from(categoryMap.keys()),
+    data: Array.from(categoryMap.values()),
+  };
+});
+
+// Chart data
+const monthlyChartData = computed(() => ({
+  labels: projectsPerMonth.value.months,
+  datasets: [
+    {
+      label: "Projects Created",
+      data: projectsPerMonth.value.counts,
+      borderColor: "rgb(249, 115, 22)",
+      backgroundColor: "rgba(249, 115, 22, 0.1)",
+      tension: 0.4,
+    },
+  ],
+}));
+
+const categoryChartData = computed(() => ({
+  labels: projectsByCategory.value.labels,
+  datasets: [
+    {
+      data: projectsByCategory.value.data,
+      backgroundColor: [
+        "rgba(249, 115, 22, 0.8)",
+        "rgba(59, 130, 246, 0.8)",
+        "rgba(16, 185, 129, 0.8)",
+        "rgba(139, 92, 246, 0.8)",
+        "rgba(236, 72, 153, 0.8)",
+        "rgba(234, 179, 8, 0.8)",
+      ],
+    },
+  ],
+}));
+
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: false,
+    },
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+      ticks: {
+        stepSize: 1,
+      },
+    },
+  },
+};
+
+const doughnutOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: "bottom" as const,
+    },
+  },
+};
 </script>
 
 <template>
@@ -93,12 +254,25 @@ const publishedPages = computed(() => {
         </div>
 
         <!-- Loading -->
-        <div v-if="loading" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <USkeleton v-for="i in 3" :key="i" class="h-32" />
+        <div v-if="loading">
+          <!-- Stats Loading -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <USkeleton v-for="i in 4" :key="i" class="h-32" />
+          </div>
+
+          <!-- Charts Loading -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <USkeleton v-for="i in 2" :key="i" class="h-80" />
+          </div>
+
+          <!-- Lists Loading -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <USkeleton v-for="i in 3" :key="i" class="h-96" />
+          </div>
         </div>
 
         <!-- Stats -->
-        <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div v-else class="grid grid-cols-1 md:grid-cols-4 gap-6">
           <!-- Pages -->
           <UCard>
             <div class="flex items-start justify-between">
@@ -131,6 +305,25 @@ const publishedPages = computed(() => {
             </div>
           </UCard>
 
+          <!-- Projects -->
+          <UCard>
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-sm text-muted">Active Projects</p>
+                <p class="text-3xl font-bold mt-2">{{ projectStats.total }}</p>
+                <p class="text-sm text-muted mt-2">
+                  {{ projectStats.inProgress }} in progress
+                </p>
+              </div>
+              <div class="p-3 bg-orange-500/10 rounded-lg">
+                <UIcon
+                  name="i-lucide-folder-kanban"
+                  class="size-6 text-orange-500"
+                />
+              </div>
+            </div>
+          </UCard>
+
           <!-- CTA -->
           <UCard
             class="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20"
@@ -152,20 +345,77 @@ const publishedPages = computed(() => {
                   New Page
                 </UButton>
                 <UButton
-                  to="/github"
-                  icon="i-lucide-refresh-cw"
+                  to="/projects"
+                  icon="i-lucide-folder-plus"
                   size="sm"
                   variant="outline"
                 >
-                  Sync GitHub
+                  New Project
                 </UButton>
               </div>
             </div>
           </UCard>
         </div>
 
+        <!-- Charts -->
+        <div
+          v-if="!loading && projects.length > 0"
+          class="grid grid-cols-1 lg:grid-cols-2 gap-6"
+        >
+          <!-- Monthly Projects Chart -->
+          <UCard>
+            <template #header>
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-lg font-semibold">Projects Per Month</h3>
+                  <p class="text-sm text-muted mt-1">Last 6 months activity</p>
+                </div>
+                <div class="p-2 bg-orange-500/10 rounded-lg">
+                  <UIcon
+                    name="i-lucide-trending-up"
+                    class="size-5 text-orange-500"
+                  />
+                </div>
+              </div>
+            </template>
+
+            <div class="h-64">
+              <ClientOnly>
+                <Line :data="monthlyChartData" :options="chartOptions" />
+              </ClientOnly>
+            </div>
+          </UCard>
+
+          <!-- Category Distribution Chart -->
+          <UCard>
+            <template #header>
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-lg font-semibold">Projects by Category</h3>
+                  <p class="text-sm text-muted mt-1">Distribution overview</p>
+                </div>
+                <div class="p-2 bg-blue-500/10 rounded-lg">
+                  <UIcon
+                    name="i-lucide-pie-chart"
+                    class="size-5 text-blue-500"
+                  />
+                </div>
+              </div>
+            </template>
+
+            <div class="h-64">
+              <ClientOnly>
+                <Doughnut
+                  :data="categoryChartData"
+                  :options="doughnutOptions"
+                />
+              </ClientOnly>
+            </div>
+          </UCard>
+        </div>
+
         <!-- Lists -->
-        <div v-if="!loading" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div v-if="!loading" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <!-- Pages -->
           <UCard>
             <template #header>
@@ -210,6 +460,66 @@ const publishedPages = computed(() => {
                   {{ page.isPublished ? "Published" : "Draft" }}
                 </UBadge>
               </NuxtLink>
+            </div>
+          </UCard>
+
+          <!-- Projects -->
+          <UCard>
+            <template #header>
+              <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold">Recent Projects</h3>
+                <UButton
+                  to="/projects"
+                  variant="ghost"
+                  size="xs"
+                  trailing-icon="i-lucide-arrow-right"
+                >
+                  View all
+                </UButton>
+              </div>
+            </template>
+
+            <div v-if="projects.length === 0" class="text-center py-8">
+              <UIcon
+                name="i-lucide-folder-kanban"
+                class="size-12 text-muted mx-auto mb-3"
+              />
+              <p class="text-sm text-muted">No projects yet</p>
+            </div>
+
+            <div v-else class="space-y-3">
+              <div
+                v-for="project in projects.slice(0, 5)"
+                :key="project.id"
+                class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium truncate">{{ project.name }}</p>
+                  <p class="text-xs text-muted truncate">
+                    {{ project.order || "No client" }}
+                  </p>
+                </div>
+
+                <UBadge
+                  :color="
+                    project.status === 'DONE'
+                      ? 'success'
+                      : project.status === 'IN_PROGRESS'
+                      ? 'warning'
+                      : 'neutral'
+                  "
+                  variant="subtle"
+                  size="xs"
+                >
+                  {{
+                    project.status === "DONE"
+                      ? "Done"
+                      : project.status === "IN_PROGRESS"
+                      ? "In Progress"
+                      : "To Do"
+                  }}
+                </UBadge>
+              </div>
             </div>
           </UCard>
 

@@ -18,10 +18,13 @@
     "@unovis/ts": "^1.6.2",
     "@unovis/vue": "^1.6.2",
     "@vueuse/nuxt": "^14.1.0",
+    "chart.js": "^4.5.1",
     "date-fns": "^4.1.0",
     "nuxt": "^4.2.2",
     "ogl": "^1.0.11",
     "tailwindcss": "^4.1.18",
+    "vue-advanced-cropper": "^2.8.9",
+    "vue-chartjs": "^5.3.3",
     "zod": "^4.2.1"
   },
   "devDependencies": {
