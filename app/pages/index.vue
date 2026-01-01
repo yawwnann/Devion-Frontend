@@ -1,598 +1,361 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { Line, Doughnut } from 'vue-chartjs'
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend
-} from 'chart.js'
+definePageMeta({ layout: false });
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend
-)
+const { user } = useAuth();
 
-/* =====================
-   Types
-===================== */
-interface Page {
-  id: string
-  title: string
-  slug: string
-  isPublished: boolean
-}
+// Animation state
+const isVisible = ref(false);
 
-interface GithubRepo {
-  id: string
-  name: string
-  description?: string
-  stars: number
-  url: string
-}
-
-interface Project {
-  id: string
-  name: string
-  status: string
-  order: string | null
-  information: string | null
-  createdAt: string
-  category?: {
-    id: string
-    name: string
-    color: string
-  } | null
-  payment?: {
-    id: string
-    name: string
-    color: string
-  } | null
-}
-
-/* =====================
-   Composables
-===================== */
-const api = useApi()
-const { user } = useAuth()
-
-/* =====================
-   State
-===================== */
-const pages = ref<Page[]>([])
-const githubRepos = ref<GithubRepo[]>([])
-const projects = ref<Project[]>([])
-const loading = ref(true)
-
-/* =====================
-   Lifecycle
-===================== */
-onMounted(async () => {
-  try {
-    const [pagesData, reposData, projectsData] = await Promise.all([
-      api.get<Page[]>('/pages'),
-      api.get<GithubRepo[]>('/github/repos'),
-      api.get<Project[]>('/projects')
-    ])
-
-    pages.value = pagesData
-    githubRepos.value = reposData
-    projects.value = projectsData
-
-    console.log('📄 Pages loaded:', pages.value)
-    console.log('🐙 Repos loaded:', githubRepos.value)
-    console.log('📊 Projects loaded:', projects.value)
-  } catch (error) {
-    console.error('Failed to load dashboard data:', error)
-  } finally {
-    loading.value = false
-  }
-})
-
-/* =====================
-   Computed
-===================== */
-const totalStars = computed(() => {
-  return githubRepos.value.reduce((sum, repo) => sum + repo.stars, 0)
-})
-
-const publishedPages = computed(() => {
-  return pages.value.filter(p => p.isPublished).length
-})
-
-const projectStats = computed(() => {
-  const total = projects.value.length
-  const todo = projects.value.filter(p => p.status === 'TODO').length
-  const inProgress = projects.value.filter(
-    p => p.status === 'IN_PROGRESS'
-  ).length
-  const done = projects.value.filter(p => p.status === 'DONE').length
-  return { total, todo, inProgress, done }
-})
-
-// Projects per month (last 6 months)
-const projectsPerMonth = computed(() => {
-  const months = []
-  const counts = []
-  const now = new Date()
-
-  for (let i = 5; i >= 0; i--) {
-    const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const monthName = date.toLocaleDateString('en-US', { month: 'short' })
-    months.push(monthName)
-
-    const count = projects.value.filter((p) => {
-      const projectDate = new Date(p.createdAt)
-      return (
-        projectDate.getMonth() === date.getMonth()
-        && projectDate.getFullYear() === date.getFullYear()
-      )
-    }).length
-    counts.push(count)
-  }
-
-  return { months, counts }
-})
-
-// Projects by category
-const projectsByCategory = computed(() => {
-  const categoryMap = new Map<string, number>()
-
-  projects.value.forEach((p) => {
-    if (p.category) {
-      const name = p.category.name
-      categoryMap.set(name, (categoryMap.get(name) || 0) + 1)
-    } else {
-      categoryMap.set(
-        'Uncategorized',
-        (categoryMap.get('Uncategorized') || 0) + 1
-      )
-    }
-  })
-
-  return {
-    labels: Array.from(categoryMap.keys()),
-    data: Array.from(categoryMap.values())
-  }
-})
-
-// Chart data
-const monthlyChartData = computed(() => ({
-  labels: projectsPerMonth.value.months,
-  datasets: [
-    {
-      label: 'Projects Created',
-      data: projectsPerMonth.value.counts,
-      borderColor: 'rgb(249, 115, 22)',
-      backgroundColor: 'rgba(249, 115, 22, 0.1)',
-      tension: 0.4
-    }
-  ]
-}))
-
-const categoryChartData = computed(() => ({
-  labels: projectsByCategory.value.labels,
-  datasets: [
-    {
-      data: projectsByCategory.value.data,
-      backgroundColor: [
-        'rgba(249, 115, 22, 0.8)',
-        'rgba(59, 130, 246, 0.8)',
-        'rgba(16, 185, 129, 0.8)',
-        'rgba(139, 92, 246, 0.8)',
-        'rgba(236, 72, 153, 0.8)',
-        'rgba(234, 179, 8, 0.8)'
-      ]
-    }
-  ]
-}))
-
-const chartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      display: false
-    }
-  },
-  scales: {
-    y: {
-      beginAtZero: true,
-      ticks: {
-        stepSize: 1
-      }
-    }
-  }
-}
-
-const doughnutOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: 'bottom' as const
-    }
-  }
-}
+onMounted(() => {
+  setTimeout(() => {
+    isVisible.value = true;
+  }, 100);
+});
 </script>
 
 <template>
-  <UDashboardPanel id="dashboard">
-    <template #header>
-      <UDashboardNavbar title="Dashboard">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-      </UDashboardNavbar>
-    </template>
+  <div class="min-h-screen bg-black text-white overflow-x-hidden">
+    <!-- Navbar -->
+    <nav
+      class="fixed top-0 left-0 right-0 z-50 border-b border-gray-800/50 bg-black/80 backdrop-blur-md transition-all duration-500"
+      :class="
+        isVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+      "
+    >
+      <div
+        class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between"
+      >
+        <!-- Logo -->
+        <NuxtLink to="/" class="flex items-center gap-2">
+          <img src="/logo.png" alt="Devion" class="h-8 w-auto" />
+        </NuxtLink>
 
-    <template #body>
-      <div class="p-6 space-y-6">
-        <!-- Header -->
-        <div>
-          <div class="flex items-center gap-2">
-            <h1 class="text-3xl font-bold">
-              Welcome back, {{ user?.name || "Developer" }}
-            </h1>
-            <UIcon name="i-lucide-sparkles" class="size-6 text-primary" />
+        <!-- Nav Links -->
+        <div class="hidden md:flex items-center gap-8">
+          <a
+            href="#features"
+            class="text-gray-400 hover:text-white transition-colors text-sm"
+          >
+            Features
+          </a>
+          <a
+            href="#about"
+            class="text-gray-400 hover:text-white transition-colors text-sm"
+          >
+            About
+          </a>
+          <a
+            href="https://github.com"
+            target="_blank"
+            class="text-gray-400 hover:text-white transition-colors text-sm"
+          >
+            GitHub
+          </a>
+        </div>
+
+        <!-- Auth Buttons -->
+        <div class="flex items-center gap-4">
+          <NuxtLink
+            v-if="!user"
+            to="/login"
+            class="px-4 py-2 text-sm text-gray-300 hover:text-white transition-colors"
+          >
+            Sign in
+          </NuxtLink>
+          <NuxtLink
+            v-if="!user"
+            to="/register"
+            class="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all duration-300 hover:scale-105"
+          >
+            Get Started
+          </NuxtLink>
+          <NuxtLink
+            v-else
+            to="/dashboard"
+            class="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all duration-300 hover:scale-105"
+          >
+            Dashboard
+          </NuxtLink>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative pt-32 pb-20 px-6">
+      <!-- Background Gradient -->
+      <div
+        class="absolute inset-0 bg-gradient-to-b from-emerald-950/20 via-transparent to-transparent pointer-events-none"
+      />
+
+      <!-- Animated Background Orbs -->
+      <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div
+          class="absolute top-20 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse"
+        />
+        <div
+          class="absolute top-40 right-1/4 w-80 h-80 bg-emerald-600/10 rounded-full blur-3xl animate-pulse delay-1000"
+        />
+      </div>
+
+      <div class="max-w-4xl mx-auto text-center relative z-10">
+        <!-- Badge -->
+        <div
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-950/50 border border-emerald-800/50 mb-8 transition-all duration-700 delay-200"
+          :class="
+            isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
+          "
+        >
+          <span class="text-emerald-400 text-sm">What's new in v1.0</span>
+          <Icon
+            name="lucide:arrow-right"
+            class="w-4 h-4 text-emerald-400 animate-bounce-x"
+          />
+        </div>
+
+        <!-- Headline -->
+        <h1
+          class="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-b from-white to-gray-400 bg-clip-text text-transparent leading-tight transition-all duration-700 delay-300"
+          :class="
+            isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
+          "
+        >
+          Supercharged<br />
+          Project Management
+        </h1>
+
+        <!-- Subtitle -->
+        <p
+          class="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 transition-all duration-700 delay-400"
+          :class="
+            isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
+          "
+        >
+          Manage your projects, track orders, and organize your workflow in one
+          place. Built for developers and freelancers who want to stay
+          productive.
+        </p>
+
+        <!-- CTA Button -->
+        <NuxtLink
+          to="/register"
+          class="inline-flex items-center gap-2 px-6 py-3 bg-white hover:bg-gray-100 text-black font-medium rounded-full transition-all duration-500 delay-500 hover:scale-105 hover:shadow-lg hover:shadow-white/20"
+          :class="
+            isVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
+          "
+        >
+          <Icon name="lucide:rocket" class="w-5 h-5" />
+          Get Started Free
+        </NuxtLink>
+      </div>
+    </section>
+
+    <!-- App Preview Section -->
+    <section class="px-6 pb-20">
+      <div
+        class="max-w-6xl mx-auto transition-all duration-1000 delay-700"
+        :class="
+          isVisible ? 'translate-y-0 opacity-100' : 'translate-y-16 opacity-0'
+        "
+      >
+        <div
+          class="relative rounded-xl overflow-hidden border border-gray-800 shadow-2xl shadow-emerald-950/20 hover:shadow-emerald-900/30 transition-all duration-500 hover:-translate-y-2"
+        >
+          <!-- Browser Header -->
+          <div
+            class="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center gap-3"
+          >
+            <div class="flex gap-2">
+              <div class="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+              <div
+                class="w-3 h-3 rounded-full bg-yellow-500 animate-pulse delay-100"
+              />
+              <div
+                class="w-3 h-3 rounded-full bg-green-500 animate-pulse delay-200"
+              />
+            </div>
+            <div class="flex-1 flex justify-center">
+              <div
+                class="px-4 py-1 bg-gray-800 rounded-md text-gray-400 text-sm flex items-center gap-2"
+              >
+                <Icon name="lucide:lock" class="w-3 h-3" />
+                devion.app
+              </div>
+            </div>
           </div>
-          <p class="text-muted mt-1">
-            Build your developer portfolio with Notion-style pages and GitHub
-            integration
+
+          <!-- App Screenshot -->
+          <img src="/devion.png" alt="Devion Dashboard" class="w-full" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="px-6 py-20 border-t border-gray-800/50">
+      <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl md:text-4xl font-bold mb-4 animate-fade-in">
+            Everything you need
+          </h2>
+          <p class="text-gray-400 max-w-2xl mx-auto animate-fade-in delay-100">
+            Powerful features to help you manage projects, track payments, and
+            stay organized.
           </p>
         </div>
 
-        <!-- Loading -->
-        <div v-if="loading">
-          <!-- Stats Loading -->
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <USkeleton v-for="i in 4" :key="i" class="h-32" />
-          </div>
-
-          <!-- Charts Loading -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <USkeleton v-for="i in 2" :key="i" class="h-80" />
-          </div>
-
-          <!-- Lists Loading -->
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <USkeleton v-for="i in 3" :key="i" class="h-96" />
-          </div>
-        </div>
-
-        <!-- Stats -->
-        <div v-else class="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <!-- Pages -->
-          <UCard>
-            <div class="flex items-start justify-between">
-              <div>
-                <p class="text-sm text-muted">
-                  Portfolio Pages
-                </p>
-                <p class="text-3xl font-bold mt-2">
-                  {{ pages.length }}
-                </p>
-                <p class="text-sm text-muted mt-2">
-                  {{ publishedPages }} published
-                </p>
-              </div>
-              <div class="p-3 bg-blue-500/10 rounded-lg">
-                <UIcon name="i-lucide-file-text" class="size-6 text-blue-500" />
-              </div>
-            </div>
-          </UCard>
-
-          <!-- GitHub -->
-          <UCard>
-            <div class="flex items-start justify-between">
-              <div>
-                <p class="text-sm text-muted">
-                  GitHub Projects
-                </p>
-                <p class="text-3xl font-bold mt-2">
-                  {{ githubRepos.length }}
-                </p>
-                <p class="text-sm text-muted mt-2">
-                  {{ totalStars }} total stars
-                </p>
-              </div>
-              <div class="p-3 bg-purple-500/10 rounded-lg">
-                <UIcon name="i-lucide-github" class="size-6 text-purple-500" />
-              </div>
-            </div>
-          </UCard>
-
-          <!-- Projects -->
-          <UCard>
-            <div class="flex items-start justify-between">
-              <div>
-                <p class="text-sm text-muted">
-                  Active Projects
-                </p>
-                <p class="text-3xl font-bold mt-2">
-                  {{ projectStats.total }}
-                </p>
-                <p class="text-sm text-muted mt-2">
-                  {{ projectStats.inProgress }} in progress
-                </p>
-              </div>
-              <div class="p-3 bg-orange-500/10 rounded-lg">
-                <UIcon
-                  name="i-lucide-folder-kanban"
-                  class="size-6 text-orange-500"
-                />
-              </div>
-            </div>
-          </UCard>
-
-          <!-- CTA -->
-          <UCard
-            class="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20"
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Feature Cards with staggered animation -->
+          <div
+            v-for="(feature, index) in [
+              {
+                icon: 'lucide:folder-kanban',
+                title: 'Project Management',
+                desc: 'Organize and track all your projects with status updates, categories, and payment tracking.',
+              },
+              {
+                icon: 'lucide:credit-card',
+                title: 'Payment Tracking',
+                desc: 'Keep track of payments, deposits, and invoices. Never miss a payment again.',
+              },
+              {
+                icon: 'lucide:check-square',
+                title: 'Todo Lists',
+                desc: 'Create and manage tasks with priorities, due dates, and progress tracking.',
+              },
+              {
+                icon: 'lucide:github',
+                title: 'GitHub Integration',
+                desc: 'Connect your GitHub account to showcase repositories and track contributions.',
+              },
+              {
+                icon: 'lucide:file-spreadsheet',
+                title: 'Import & Export',
+                desc: 'Import and export your data in CSV or Excel format for easy backup and migration.',
+              },
+              {
+                icon: 'lucide:bar-chart-3',
+                title: 'Analytics Dashboard',
+                desc: 'Get insights into your projects with visual charts and statistics.',
+              },
+            ]"
+            :key="index"
+            class="group p-6 rounded-xl bg-gray-900/50 border border-gray-800 hover:border-emerald-800/50 transition-all duration-500 hover:-translate-y-2 hover:shadow-lg hover:shadow-emerald-950/20"
+            :style="{ animationDelay: `${index * 100}ms` }"
           >
-            <div class="flex flex-col h-full justify-between">
-              <div>
-                <p class="text-sm font-medium">
-                  Ready to create?
-                </p>
-                <p class="text-xs text-muted mt-1">
-                  Start building your portfolio
-                </p>
-              </div>
-              <div class="flex gap-2 mt-4">
-                <UButton
-                  to="/pages"
-                  icon="i-lucide-plus"
-                  size="sm"
-                  color="primary"
-                >
-                  New Page
-                </UButton>
-                <UButton
-                  to="/projects"
-                  icon="i-lucide-folder-plus"
-                  size="sm"
-                  variant="outline"
-                >
-                  New Project
-                </UButton>
-              </div>
+            <div
+              class="w-12 h-12 rounded-lg bg-emerald-950 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300"
+            >
+              <Icon :name="feature.icon" class="w-6 h-6 text-emerald-400" />
             </div>
-          </UCard>
-        </div>
-
-        <!-- Charts -->
-        <div
-          v-if="!loading && projects.length > 0"
-          class="grid grid-cols-1 lg:grid-cols-2 gap-6"
-        >
-          <!-- Monthly Projects Chart -->
-          <UCard>
-            <template #header>
-              <div class="flex items-center justify-between">
-                <div>
-                  <h3 class="text-lg font-semibold">
-                    Projects Per Month
-                  </h3>
-                  <p class="text-sm text-muted mt-1">
-                    Last 6 months activity
-                  </p>
-                </div>
-                <div class="p-2 bg-orange-500/10 rounded-lg">
-                  <UIcon
-                    name="i-lucide-trending-up"
-                    class="size-5 text-orange-500"
-                  />
-                </div>
-              </div>
-            </template>
-
-            <div class="h-64">
-              <ClientOnly>
-                <Line :data="monthlyChartData" :options="chartOptions" />
-              </ClientOnly>
-            </div>
-          </UCard>
-
-          <!-- Category Distribution Chart -->
-          <UCard>
-            <template #header>
-              <div class="flex items-center justify-between">
-                <div>
-                  <h3 class="text-lg font-semibold">
-                    Projects by Category
-                  </h3>
-                  <p class="text-sm text-muted mt-1">
-                    Distribution overview
-                  </p>
-                </div>
-                <div class="p-2 bg-blue-500/10 rounded-lg">
-                  <UIcon
-                    name="i-lucide-pie-chart"
-                    class="size-5 text-blue-500"
-                  />
-                </div>
-              </div>
-            </template>
-
-            <div class="h-64">
-              <ClientOnly>
-                <Doughnut
-                  :data="categoryChartData"
-                  :options="doughnutOptions"
-                />
-              </ClientOnly>
-            </div>
-          </UCard>
-        </div>
-
-        <!-- Lists -->
-        <div v-if="!loading" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <!-- Pages -->
-          <UCard>
-            <template #header>
-              <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold">
-                  Recent Pages
-                </h3>
-                <UButton
-                  to="/pages"
-                  variant="ghost"
-                  size="xs"
-                  trailing-icon="i-lucide-arrow-right"
-                >
-                  View all
-                </UButton>
-              </div>
-            </template>
-
-            <div v-if="pages.length === 0" class="text-center py-8">
-              <UIcon
-                name="i-lucide-file-text"
-                class="size-12 text-muted mx-auto mb-3"
-              />
-              <p class="text-sm text-muted">
-                No pages yet
-              </p>
-            </div>
-
-            <div v-else class="space-y-3">
-              <NuxtLink
-                v-for="page in pages.slice(0, 5)"
-                :key="page.id"
-                :to="`/pages/${page.id}`"
-                class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                <div>
-                  <p class="font-medium truncate">{{ page.title }}</p>
-                  <p class="text-xs text-muted truncate">/{{ page.slug }}</p>
-                </div>
-
-                <UBadge
-                  :color="page.isPublished ? 'success' : 'neutral'"
-                  variant="subtle"
-                  size="xs"
-                >
-                  {{ page.isPublished ? "Published" : "Draft" }}
-                </UBadge>
-              </NuxtLink>
-            </div>
-          </UCard>
-
-          <!-- Projects -->
-          <UCard>
-            <template #header>
-              <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold">
-                  Recent Projects
-                </h3>
-                <UButton
-                  to="/projects"
-                  variant="ghost"
-                  size="xs"
-                  trailing-icon="i-lucide-arrow-right"
-                >
-                  View all
-                </UButton>
-              </div>
-            </template>
-
-            <div v-if="projects.length === 0" class="text-center py-8">
-              <UIcon
-                name="i-lucide-folder-kanban"
-                class="size-12 text-muted mx-auto mb-3"
-              />
-              <p class="text-sm text-muted">
-                No projects yet
-              </p>
-            </div>
-
-            <div v-else class="space-y-3">
-              <div
-                v-for="project in projects.slice(0, 5)"
-                :key="project.id"
-                class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                <div class="flex-1 min-w-0">
-                  <p class="font-medium truncate">
-                    {{ project.name }}
-                  </p>
-                  <p class="text-xs text-muted truncate">
-                    {{ project.order || "No client" }}
-                  </p>
-                </div>
-
-                <UBadge
-                  :color="
-                    project.status === 'DONE'
-                      ? 'success'
-                      : project.status === 'IN_PROGRESS'
-                        ? 'warning'
-                        : 'neutral'
-                  "
-                  variant="subtle"
-                  size="xs"
-                >
-                  {{
-                    project.status === "DONE"
-                      ? "Done"
-                      : project.status === "IN_PROGRESS"
-                        ? "In Progress"
-                        : "To Do"
-                  }}
-                </UBadge>
-              </div>
-            </div>
-          </UCard>
-
-          <!-- GitHub -->
-          <UCard>
-            <template #header>
-              <h3 class="text-lg font-semibold">
-                Top GitHub Projects
-              </h3>
-            </template>
-
-            <div v-if="githubRepos.length === 0" class="text-center py-8">
-              <p class="text-sm text-muted">
-                No repositories synced
-              </p>
-            </div>
-
-            <div v-else class="space-y-3">
-              <a
-                v-for="repo in githubRepos.slice(0, 5)"
-                :key="repo.id"
-                :href="repo.url"
-                target="_blank"
-                class="flex justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                <div>
-                  <p class="font-medium truncate">{{ repo.name }}</p>
-                  <p class="text-xs text-muted truncate">
-                    {{ repo.description || "No description" }}
-                  </p>
-                </div>
-
-                <div class="flex items-center gap-1">
-                  <UIcon name="i-lucide-star" class="size-3 text-yellow-500" />
-                  <span class="text-xs font-medium">{{ repo.stars }}</span>
-                </div>
-              </a>
-            </div>
-          </UCard>
+            <h3 class="text-lg font-semibold mb-2">{{ feature.title }}</h3>
+            <p class="text-gray-400 text-sm">{{ feature.desc }}</p>
+          </div>
         </div>
       </div>
-    </template>
-  </UDashboardPanel>
+    </section>
+
+    <!-- CTA Section -->
+    <section id="about" class="px-6 py-20 border-t border-gray-800/50">
+      <div class="max-w-4xl mx-auto text-center">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">
+          Ready to get started?
+        </h2>
+        <p class="text-gray-400 mb-8">
+          Join developers and freelancers who use Devion to manage their
+          projects.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <NuxtLink
+            to="/register"
+            class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-600/30"
+          >
+            <Icon name="lucide:user-plus" class="w-5 h-5" />
+            Create Account
+          </NuxtLink>
+          <NuxtLink
+            to="/login"
+            class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-lg transition-all duration-300 hover:scale-105"
+          >
+            <Icon name="lucide:log-in" class="w-5 h-5" />
+            Sign In
+          </NuxtLink>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="px-6 py-8 border-t border-gray-800/50">
+      <div
+        class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4"
+      >
+        <div class="flex items-center gap-2">
+          <img src="/logo.png" alt="Devion" class="h-6 w-auto" />
+          <span class="text-gray-500 text-sm"
+            >© 2026 Devion. All rights reserved.</span
+          >
+        </div>
+        <div class="flex items-center gap-6">
+          <a
+            href="#"
+            class="text-gray-500 hover:text-white transition-colors text-sm"
+            >Privacy</a
+          >
+          <a
+            href="#"
+            class="text-gray-500 hover:text-white transition-colors text-sm"
+            >Terms</a
+          >
+          <a
+            href="https://github.com"
+            target="_blank"
+            class="text-gray-500 hover:text-white transition-colors"
+          >
+            <Icon name="lucide:github" class="w-5 h-5" />
+          </a>
+        </div>
+      </div>
+    </footer>
+  </div>
 </template>
+
+<style scoped>
+@keyframes bounce-x {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+}
+
+.animate-bounce-x {
+  animation: bounce-x 1s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+.delay-100 {
+  animation-delay: 100ms;
+}
+
+.delay-200 {
+  animation-delay: 200ms;
+}
+
+.delay-1000 {
+  animation-delay: 1000ms;
+}
+</style>

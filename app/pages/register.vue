@@ -1,67 +1,67 @@
 <script setup lang="ts">
-definePageMeta({ layout: false })
+definePageMeta({ layout: false });
 
-const api = useApi()
-const { setToken, fetchUser } = useAuth()
+const api = useApi();
+const { setToken, fetchUser } = useAuth();
 
-const apiUrl = 'http://localhost:3000/api'
-const name = ref('')
-const email = ref('')
-const password = ref('')
-const confirmPassword = ref('')
-const showPassword = ref(false)
-const showConfirmPassword = ref(false)
-const agreeTerms = ref(false)
-const loading = ref(false)
-const error = ref('')
+const apiUrl = "http://localhost:3000/api";
+const name = ref("");
+const email = ref("");
+const password = ref("");
+const confirmPassword = ref("");
+const showPassword = ref(false);
+const showConfirmPassword = ref(false);
+const agreeTerms = ref(false);
+const loading = ref(false);
+const error = ref("");
 
 const handleRegister = async () => {
-  error.value = ''
+  error.value = "";
 
   if (
-    !name.value
-    || !email.value
-    || !password.value
-    || !confirmPassword.value
+    !name.value ||
+    !email.value ||
+    !password.value ||
+    !confirmPassword.value
   ) {
-    error.value = 'Please fill in all fields'
-    return
+    error.value = "Please fill in all fields";
+    return;
   }
 
   if (password.value !== confirmPassword.value) {
-    error.value = 'Passwords do not match'
-    return
+    error.value = "Passwords do not match";
+    return;
   }
 
   if (password.value.length < 6) {
-    error.value = 'Password must be at least 6 characters'
-    return
+    error.value = "Password must be at least 6 characters";
+    return;
   }
 
   if (!agreeTerms.value) {
-    error.value = 'Please agree to the Terms of Service'
-    return
+    error.value = "Please agree to the Terms of Service";
+    return;
   }
 
-  loading.value = true
+  loading.value = true;
 
   try {
-    const response = await api.post<{ accessToken: string }>('/auth/register', {
+    const response = await api.post<{ accessToken: string }>("/auth/register", {
       name: name.value,
       email: email.value,
-      password: password.value
-    })
+      password: password.value,
+    });
 
-    setToken(response.accessToken)
-    await nextTick() // Wait for cookie to be set
-    await fetchUser()
-    navigateTo('/')
+    setToken(response.accessToken);
+    await nextTick(); // Wait for cookie to be set
+    await fetchUser();
+    navigateTo("/dashboard");
   } catch {
-    error.value = 'Registration failed. Email may already be registered.'
+    error.value = "Registration failed. Email may already be registered.";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 </script>
 
 <template>
@@ -70,7 +70,7 @@ const handleRegister = async () => {
     <div class="w-full lg:w-1/2 flex flex-col min-h-screen">
       <!-- Header -->
       <div class="p-6">
-        <img src="/logo.png" alt="Devion" class="h-8 w-auto">
+        <img src="/logo.png" alt="Devion" class="h-8 w-auto" />
       </div>
 
       <!-- Form Container -->
@@ -122,14 +122,14 @@ const handleRegister = async () => {
               placeholder="Full Name"
               required
               class="w-full px-4 py-3 bg-transparent text-white rounded-full border border-gray-700 focus:border-white focus:outline-none transition-colors placeholder-gray-500"
-            >
+            />
             <input
               v-model="email"
               type="email"
               placeholder="Email"
               required
               class="w-full px-4 py-3 bg-transparent text-white rounded-full border border-gray-700 focus:border-white focus:outline-none transition-colors placeholder-gray-500"
-            >
+            />
             <div class="relative">
               <input
                 v-model="password"
@@ -137,7 +137,7 @@ const handleRegister = async () => {
                 placeholder="Password"
                 required
                 class="w-full px-4 py-3 pr-12 bg-transparent text-white rounded-full border border-gray-700 focus:border-white focus:outline-none transition-colors placeholder-gray-500"
-              >
+              />
               <button
                 type="button"
                 class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
@@ -156,7 +156,7 @@ const handleRegister = async () => {
                 placeholder="Confirm Password"
                 required
                 class="w-full px-4 py-3 pr-12 bg-transparent text-white rounded-full border border-gray-700 focus:border-white focus:outline-none transition-colors placeholder-gray-500"
-              >
+              />
               <button
                 type="button"
                 class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
@@ -177,7 +177,7 @@ const handleRegister = async () => {
                 v-model="agreeTerms"
                 type="checkbox"
                 class="w-4 h-4 rounded border-gray-700 bg-transparent checked:bg-white focus:ring-0"
-              >
+              />
               <span>
                 I agree to the
                 <span class="text-white">Terms</span>
@@ -239,9 +239,7 @@ const handleRegister = async () => {
         class="absolute inset-0 flex flex-col items-center justify-center p-12 z-10"
       >
         <div class="text-center space-y-4">
-          <h2 class="text-4xl font-bold text-white">
-            Join Devion
-          </h2>
+          <h2 class="text-4xl font-bold text-white">Join Devion</h2>
           <p class="text-lg text-gray-300 max-w-md">
             Create your developer portfolio in minutes. Showcase your projects
             and connect with the community.

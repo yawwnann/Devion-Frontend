@@ -1,74 +1,90 @@
 <script setup lang="ts">
-import type { NavigationMenuItem } from '@nuxt/ui'
+import type { NavigationMenuItem } from "@nuxt/ui";
 
-const open = ref(false)
+const open = ref(false);
 
 const links = [
   [
     {
-      label: 'Dashboard',
-      icon: 'i-lucide-layout-dashboard',
-      to: '/',
+      label: "Dashboard",
+      icon: "i-lucide-layout-dashboard",
+      to: "/dashboard",
       onSelect: () => {
-        open.value = false
-      }
-    }
+        open.value = false;
+      },
+    },
   ],
   [
     {
-      label: 'Pages',
-      icon: 'i-lucide-file-text',
-      to: '/pages',
+      label: "Pages",
+      icon: "i-lucide-file-text",
+      to: "/pages",
       onSelect: () => {
-        open.value = false
-      }
+        open.value = false;
+      },
     },
     {
-      label: 'Projects',
-      icon: 'i-lucide-folder-kanban',
-      to: '/projects',
+      label: "Projects",
+      icon: "i-lucide-folder-kanban",
+      to: "/projects",
       onSelect: () => {
-        open.value = false
-      }
+        open.value = false;
+      },
     },
     {
-      label: 'Todos',
-      icon: 'i-lucide-check-square',
-      to: '/todos',
+      label: "Todos",
+      icon: "i-lucide-check-square",
+      to: "/todos",
       onSelect: () => {
-        open.value = false
-      }
-    }
+        open.value = false;
+      },
+    },
   ],
   [
     {
-      label: 'GitHub',
-      icon: 'i-lucide-github',
-      to: '/github',
+      label: "GitHub",
+      icon: "i-lucide-github",
+      to: "/github",
       onSelect: () => {
-        open.value = false
-      }
-    }
+        open.value = false;
+      },
+    },
+    {
+      label: "Code Review",
+      icon: "i-lucide-git-pull-request",
+      to: "/reviews",
+      onSelect: () => {
+        open.value = false;
+      },
+    },
   ],
   [
     {
-      label: 'Profile',
-      icon: 'i-lucide-user',
-      to: '/profile',
+      label: "Profile",
+      icon: "i-lucide-user",
+      to: "/profile",
       onSelect: () => {
-        open.value = false
-      }
-    }
-  ]
-] satisfies NavigationMenuItem[][]
+        open.value = false;
+      },
+    },
+    {
+      label: "Settings",
+      icon: "i-lucide-settings",
+      to: "/settings",
+      onSelect: () => {
+        open.value = false;
+      },
+    },
+  ],
+] satisfies NavigationMenuItem[][];
 
 const groups = computed(() => [
   {
-    id: 'links',
-    label: 'Go to',
-    items: links.flat()
-  }
-])
+    id: "links",
+    label: "Go to",
+    items: links.flat(),
+  },
+]);
 </script>
 
 <template>
@@ -78,15 +94,32 @@ const groups = computed(() => [
       v-model:open="open"
       collapsible
       resizable
-      class="bg-elevated/25"
-      :ui="{ footer: 'lg:border-t lg:border-default' }"
+      class="bg-elevated/25 transition-all duration-300 ease-in-out"
+      :ui="{
+        footer: 'lg:border-t lg:border-default',
+        body: 'transition-all duration-300 ease-in-out',
+        header: 'transition-all duration-300 ease-in-out',
+      }"
     >
       <template #header="{ collapsed }">
-        <div class="flex items-center gap-3 p-4">
-          <div class="flex items-center justify-center size-10 rounded-lg">
-            <img src="/logo.png" alt="">
+        <div
+          class="flex items-center gap-3 transition-all duration-300 ease-in-out"
+          :class="collapsed ? 'p-3' : 'p-4'"
+        >
+          <div
+            class="flex items-center justify-center rounded-lg overflow-hidden transition-all duration-300 ease-in-out r-2 shrink-0"
+            :class="collapsed ? 'size-8' : 'size-10'"
+          >
+            <img
+              src="/logo.png"
+              alt="Devion Logo"
+              class="w-full h-full object-contain transition-all duration-300 ease-in-out"
+            />
           </div>
-          <div v-if="!collapsed" class="flex flex-col">
+          <div
+            v-if="!collapsed"
+            class="flex flex-col transition-opacity duration-300 ease-in-out"
+          >
             <span class="font-bold text-lg">Devion</span>
             <span class="text-xs text-muted">Portfolio Builder</span>
           </div>
@@ -100,7 +133,10 @@ const groups = computed(() => [
         />
 
         <!-- Overview Section -->
-        <div v-if="!collapsed" class="px-3 mb-2">
+        <div
+          v-if="!collapsed"
+          class="px-3 mb-2 transition-opacity duration-300 ease-in-out"
+        >
           <p class="text-xs font-semibold text-muted uppercase tracking-wider">
             Overview
           </p>
@@ -115,7 +151,10 @@ const groups = computed(() => [
         />
 
         <!-- Workspace Section -->
-        <div v-if="!collapsed" class="px-3 mb-2">
+        <div
+          v-if="!collapsed"
+          class="px-3 mb-2 transition-opacity duration-300 ease-in-out"
+        >
           <p class="text-xs font-semibold text-muted uppercase tracking-wider">
             Workspace
           </p>
@@ -130,7 +169,10 @@ const groups = computed(() => [
         />
 
         <!-- Integrations Section -->
-        <div v-if="!collapsed" class="px-3 mb-2">
+        <div
+          v-if="!collapsed"
+          class="px-3 mb-2 transition-opacity duration-300 ease-in-out"
+        >
           <p class="text-xs font-semibold text-muted uppercase tracking-wider">
             Integrations
           </p>
@@ -145,7 +187,10 @@ const groups = computed(() => [
         />
 
         <!-- Settings Section -->
-        <div v-if="!collapsed" class="px-3 mb-2 mt-auto">
+        <div
+          v-if="!collapsed"
+          class="px-3 mb-2 mt-auto transition-opacity duration-300 ease-in-out"
+        >
           <p class="text-xs font-semibold text-muted uppercase tracking-wider">
             Settings
           </p>

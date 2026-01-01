@@ -1,41 +1,41 @@
 <script setup lang="ts">
-definePageMeta({ layout: false })
+definePageMeta({ layout: false });
 
-const api = useApi()
-const { setToken, fetchUser } = useAuth()
+const api = useApi();
+const { setToken, fetchUser } = useAuth();
 
-const apiUrl = 'http://localhost:3000/api'
-const email = ref('')
-const password = ref('')
-const showPassword = ref(false)
-const loading = ref(false)
-const error = ref('')
+const apiUrl = "http://localhost:3000/api";
+const email = ref("");
+const password = ref("");
+const showPassword = ref(false);
+const loading = ref(false);
+const error = ref("");
 
 const handleLogin = async () => {
   if (!email.value || !password.value) {
-    error.value = 'Please fill in all fields'
-    return
+    error.value = "Please fill in all fields";
+    return;
   }
 
-  loading.value = true
-  error.value = ''
+  loading.value = true;
+  error.value = "";
 
   try {
-    const response = await api.post<{ accessToken: string }>('/auth/login', {
+    const response = await api.post<{ accessToken: string }>("/auth/login", {
       email: email.value,
-      password: password.value
-    })
+      password: password.value,
+    });
 
-    setToken(response.accessToken)
-    await nextTick() // Wait for cookie to be set
-    await fetchUser()
-    navigateTo('/')
+    setToken(response.accessToken);
+    await nextTick(); // Wait for cookie to be set
+    await fetchUser();
+    navigateTo("/dashboard");
   } catch {
-    error.value = 'Invalid email or password'
+    error.value = "Invalid email or password";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 </script>
 
 <template>
@@ -44,7 +44,7 @@ const handleLogin = async () => {
     <div class="w-full lg:w-1/2 flex flex-col min-h-screen">
       <!-- Header -->
       <div class="p-6">
-        <img src="/logo.png" alt="Devion" class="h-8 w-auto">
+        <img src="/logo.png" alt="Devion" class="h-8 w-auto" />
       </div>
 
       <!-- Form Container -->
@@ -96,7 +96,7 @@ const handleLogin = async () => {
               placeholder="Email"
               required
               class="w-full px-4 py-3 bg-transparent text-white rounded-full border border-gray-700 focus:border-white focus:outline-none transition-colors placeholder-gray-500"
-            >
+            />
             <div class="relative">
               <input
                 v-model="password"
@@ -104,7 +104,7 @@ const handleLogin = async () => {
                 placeholder="Password"
                 required
                 class="w-full px-4 py-3 pr-12 bg-transparent text-white rounded-full border border-gray-700 focus:border-white focus:outline-none transition-colors placeholder-gray-500"
-              >
+              />
               <button
                 type="button"
                 class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
@@ -170,9 +170,7 @@ const handleLogin = async () => {
         class="absolute inset-0 flex flex-col items-center justify-center p-12 z-10"
       >
         <div class="text-center space-y-4">
-          <h2 class="text-4xl font-bold text-white">
-            Welcome Back
-          </h2>
+          <h2 class="text-4xl font-bold text-white">Welcome Back</h2>
           <p class="text-lg text-gray-300 max-w-md">
             Build stunning developer portfolios with GitHub integration and
             real-time analytics.
