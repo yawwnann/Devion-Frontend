@@ -1,121 +1,121 @@
 <script setup lang="ts">
-const route = useRoute();
-const api = useApi();
-const pageId = route.params.id as string;
+const route = useRoute()
+const api = useApi()
+const pageId = route.params.id as string
 
 interface Block {
-  id: string;
-  type: string;
-  content: Record<string, unknown>;
-  order: number;
+  id: string
+  type: string
+  content: Record<string, unknown>
+  order: number
 }
 
 interface Page {
-  id: string;
-  title: string;
-  slug: string;
-  icon: string | null;
-  isPublished: boolean;
+  id: string
+  title: string
+  slug: string
+  icon: string | null
+  isPublished: boolean
 }
 
-const page = ref<Page | null>(null);
-const blocks = ref<Block[]>([]);
-const loading = ref(true);
-const saving = ref(false);
+const page = ref<Page | null>(null)
+const blocks = ref<Block[]>([])
+const loading = ref(true)
+const saving = ref(false)
 
 const updateTitle = async (newTitle: string) => {
-  if (!page.value || newTitle === page.value.title) return;
-  saving.value = true;
+  if (!page.value || newTitle === page.value.title) return
+  saving.value = true
   try {
-    await api.patch(`/pages/${pageId}`, { title: newTitle });
-    page.value.title = newTitle;
+    await api.patch(`/pages/${pageId}`, { title: newTitle })
+    page.value.title = newTitle
   } catch (e) {
-    console.error("Failed to update title:", e);
+    console.error('Failed to update title:', e)
   } finally {
-    saving.value = false;
+    saving.value = false
   }
-};
+}
 
-const addBlock = async (type = "text") => {
+const addBlock = async (type = 'text') => {
   try {
-    const newBlock = await api.post<Block>("/blocks", {
+    const newBlock = await api.post<Block>('/blocks', {
       pageId,
       type,
       content:
-        type === "text"
-          ? { text: "" }
-          : type === "heading"
-          ? { text: "", level: 1 }
-          : type === "todo"
-          ? { text: "", checked: false }
-          : type === "code"
-          ? { code: "" }
-          : { text: "" },
-      order: blocks.value.length,
-    });
-    blocks.value.push(newBlock);
+        type === 'text'
+          ? { text: '' }
+          : type === 'heading'
+            ? { text: '', level: 1 }
+            : type === 'todo'
+              ? { text: '', checked: false }
+              : type === 'code'
+                ? { code: '' }
+                : { text: '' },
+      order: blocks.value.length
+    })
+    blocks.value.push(newBlock)
   } catch (e) {
-    console.error("Failed to add block:", e);
+    console.error('Failed to add block:', e)
   }
-};
+}
 
 const updateBlock = async (
   blockId: string,
   content: Record<string, unknown>
 ) => {
-  const block = blocks.value.find((b) => b.id === blockId);
-  if (!block) return;
+  const block = blocks.value.find(b => b.id === blockId)
+  if (!block) return
 
-  block.content = content;
-  saving.value = true;
+  block.content = content
+  saving.value = true
   try {
-    await api.patch(`/blocks/${blockId}`, { content });
+    await api.patch(`/blocks/${blockId}`, { content })
   } catch (e) {
-    console.error("Failed to update block:", e);
+    console.error('Failed to update block:', e)
   } finally {
-    saving.value = false;
+    saving.value = false
   }
-};
+}
 
 const deleteBlock = async (blockId: string) => {
   try {
-    await api.delete(`/blocks/${blockId}`);
-    blocks.value = blocks.value.filter((b) => b.id !== blockId);
+    await api.delete(`/blocks/${blockId}`)
+    blocks.value = blocks.value.filter(b => b.id !== blockId)
   } catch (e) {
-    console.error("Failed to delete block:", e);
+    console.error('Failed to delete block:', e)
   }
-};
+}
 
 const togglePublish = async () => {
-  if (!page.value) return;
-  saving.value = true;
+  if (!page.value) return
+  saving.value = true
   try {
     await api.patch(`/pages/${pageId}`, {
-      isPublished: !page.value.isPublished,
-    });
-    page.value.isPublished = !page.value.isPublished;
+      isPublished: !page.value.isPublished
+    })
+    page.value.isPublished = !page.value.isPublished
   } catch (e) {
-    console.error("Failed to toggle publish:", e);
+    console.error('Failed to toggle publish:', e)
   } finally {
-    saving.value = false;
+    saving.value = false
   }
-};
+}
 
 onMounted(async () => {
   try {
     const [pageData, blocksData] = await Promise.all([
       api.get<Page>(`/pages/${pageId}`),
-      api.get<Block[]>(`/blocks/page/${pageId}`),
-    ]);
-    page.value = pageData;
-    blocks.value = blocksData.sort((a, b) => a.order - b.order);
+      api.get<Block[]>(`/blocks/page/${pageId}`)
+    ])
+    page.value = pageData
+    blocks.value = blocksData.sort((a, b) => a.order - b.order)
   } catch (e) {
-    console.error("Failed to load page:", e);
-    navigateTo("/pages");
+    console.error('Failed to load page:', e)
+    navigateTo('/pages')
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-});
+})
 </script>
 
 <template>
@@ -171,7 +171,7 @@ onMounted(async () => {
             class="text-4xl font-bold bg-transparent border-none outline-none w-full placeholder-gray-400"
             placeholder="Untitled"
             @blur="(e) => updateTitle((e.target as HTMLInputElement).value)"
-          />
+          >
         </div>
 
         <!-- Blocks -->
@@ -213,7 +213,7 @@ onMounted(async () => {
                 class="w-full bg-transparent border-none outline-none font-bold text-3xl placeholder-gray-400"
                 placeholder="Heading"
                 @input="(e) => updateBlock(block.id, { text: (e.target as HTMLInputElement).value, level: 1 })"
-              />
+              >
             </div>
 
             <!-- Bullet List Block -->
@@ -227,7 +227,7 @@ onMounted(async () => {
                 class="flex-1 bg-transparent border-none outline-none text-base placeholder-gray-400"
                 placeholder="List item"
                 @input="(e) => updateBlock(block.id, { text: (e.target as HTMLInputElement).value })"
-              />
+              >
             </div>
 
             <!-- Todo Block -->
@@ -237,8 +237,8 @@ onMounted(async () => {
             >
               <UCheckbox
                 :model-value="(block.content as any).checked"
-                @update:model-value="(val) => updateBlock(block.id, { text: (block.content as any).text, checked: val })"
                 class="mt-1"
+                @update:model-value="(val) => updateBlock(block.id, { text: (block.content as any).text, checked: val })"
               />
               <input
                 :value="(block.content as any).text"
@@ -248,7 +248,7 @@ onMounted(async () => {
                 ]"
                 placeholder="To-do"
                 @input="(e) => updateBlock(block.id, { text: (e.target as HTMLInputElement).value, checked: (block.content as any).checked })"
-              />
+              >
             </div>
 
             <!-- Quote Block -->
@@ -293,7 +293,9 @@ onMounted(async () => {
               name="i-lucide-file-text"
               class="size-12 text-muted mx-auto mb-3"
             />
-            <p class="text-muted mb-4">Start writing your content</p>
+            <p class="text-muted mb-4">
+              Start writing your content
+            </p>
           </div>
         </div>
 

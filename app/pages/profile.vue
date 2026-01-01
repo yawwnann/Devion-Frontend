@@ -1,20 +1,20 @@
 <script setup lang="ts">
 // Profile page - fetch dari API
 
-const { user, logout, fetchUser } = useAuth();
+const { user, logout, fetchUser } = useAuth()
 
 onMounted(async () => {
   if (!user.value) {
-    await fetchUser();
+    await fetchUser()
   }
-});
+})
 
 const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
-};
+  return new Date(date).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric'
+  })
+}
 </script>
 
 <template>
@@ -39,8 +39,12 @@ const formatDate = (date: string) => {
                 size="xl"
               />
               <div>
-                <h2 class="text-xl font-bold">{{ user.name || "User" }}</h2>
-                <p class="text-muted">{{ user.email }}</p>
+                <h2 class="text-xl font-bold">
+                  {{ user.name || "User" }}
+                </h2>
+                <p class="text-muted">
+                  {{ user.email }}
+                </p>
               </div>
             </div>
 

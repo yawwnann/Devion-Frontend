@@ -20,9 +20,10 @@ const props = withDefaults(defineProps<PlasmaProps>(), {
   mouseInteractive: true,
 });
 
-const hexToRgb = (hex: string): [number, number, number] => {
+const hexToRgb = (hex: string | undefined): [number, number, number] => {
+  if (!hex) return [1, 0.5, 0.2];
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return [1, 0.5, 0.2];
+  if (!result || !result[1] || !result[2] || !result[3]) return [1, 0.5, 0.2];
   return [
     parseInt(result[1], 16) / 255,
     parseInt(result[2], 16) / 255,
@@ -201,7 +202,9 @@ const setup = () => {
     }
     try {
       containerRef.value?.removeChild(canvas);
-    } catch {}
+    } catch {
+      // Ignore errors when removing canvas
+    }
   };
 };
 

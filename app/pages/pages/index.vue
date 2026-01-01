@@ -1,47 +1,47 @@
 <script setup lang="ts">
 // Pages list - fetch dari API
 
-const api = useApi();
+const api = useApi()
 
 interface Page {
-  id: string;
-  title: string;
-  icon: string | null;
-  updatedAt: string;
+  id: string
+  title: string
+  icon: string | null
+  updatedAt: string
 }
 
-const pages = ref<Page[]>([]);
-const loading = ref(true);
+const pages = ref<Page[]>([])
+const loading = ref(true)
 
 const formatDate = (date: string) => {
-  const d = new Date(date);
-  const now = new Date();
-  const diff = now.getTime() - d.getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days} days ago`;
-  return d.toLocaleDateString();
-};
+  const d = new Date(date)
+  const now = new Date()
+  const diff = now.getTime() - d.getTime()
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return `${days} days ago`
+  return d.toLocaleDateString()
+}
 
 const createPage = async () => {
   try {
-    const newPage = await api.post<Page>("/pages", { title: "Untitled" });
-    navigateTo(`/pages/${newPage.id}`);
+    const newPage = await api.post<Page>('/pages', { title: 'Untitled' })
+    navigateTo(`/pages/${newPage.id}`)
   } catch (e) {
-    console.error("Failed to create page:", e);
+    console.error('Failed to create page:', e)
   }
-};
+}
 
 onMounted(async () => {
   try {
-    pages.value = await api.get<Page[]>("/pages");
+    pages.value = await api.get<Page[]>('/pages')
   } catch (e) {
-    console.error("Failed to load pages:", e);
+    console.error('Failed to load pages:', e)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-});
+})
 </script>
 
 <template>
@@ -72,11 +72,18 @@ onMounted(async () => {
             name="i-lucide-file-text"
             class="size-12 text-muted mx-auto mb-4"
           />
-          <h3 class="font-semibold mb-2">No pages yet</h3>
-          <p class="text-muted mb-4">Create your first page to get started</p>
-          <UButton icon="i-lucide-plus" @click="createPage"
-            >Create Page</UButton
+          <h3 class="font-semibold mb-2">
+            No pages yet
+          </h3>
+          <p class="text-muted mb-4">
+            Create your first page to get started
+          </p>
+          <UButton
+            icon="i-lucide-plus"
+            @click="createPage"
           >
+            Create Page
+          </UButton>
         </div>
 
         <!-- Pages List -->

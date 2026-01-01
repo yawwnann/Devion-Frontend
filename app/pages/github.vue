@@ -1,90 +1,112 @@
 <script setup lang="ts">
+import { Doughnut as _Doughnut, Bar as _Bar } from 'vue-chartjs'
+import {
+  Chart as ChartJS,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js'
+
+ChartJS.register(
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+)
+
 // GitHub Repos - fetch dari API
 
-const api = useApi();
-const { user } = useAuth();
+const api = useApi()
+const { user } = useAuth()
 
 interface Repo {
-  id: string;
-  name: string;
-  description: string | null;
-  language: string | null;
-  stars: number;
-  forks: number;
-  url: string;
-  updatedAt: string;
+  id: string
+  name: string
+  description: string | null
+  language: string | null
+  stars: number
+  forks: number
+  url: string
+  updatedAt: string
 }
 
-const repos = ref<Repo[]>([]);
-const loading = ref(true);
-const syncing = ref(false);
-const usernameInput = ref("");
-const showUsernameModal = ref(false);
+const repos = ref<Repo[]>([])
+const loading = ref(true)
+const syncing = ref(false)
+const usernameInput = ref('')
+const showUsernameModal = ref(false)
 
 // Pagination
-const page = ref(1);
-const pageSize = 10;
-const totalRepos = computed(() => repos.value.length);
-const totalPages = computed(() => Math.ceil(totalRepos.value / pageSize));
+const page = ref(1)
+const pageSize = 10
+const totalRepos = computed(() => repos.value.length)
+const totalPages = computed(() => Math.ceil(totalRepos.value / pageSize))
 const paginatedRepos = computed(() => {
-  const start = (page.value - 1) * pageSize;
-  const end = start + pageSize;
-  return repos.value.slice(start, end);
-});
+  const start = (page.value - 1) * pageSize
+  const end = start + pageSize
+  return repos.value.slice(start, end)
+})
 
 const languageColors: Record<string, string> = {
-  JavaScript: "bg-yellow-400",
-  TypeScript: "bg-blue-500",
-  Python: "bg-green-500",
-  Shell: "bg-gray-500",
-  Go: "bg-cyan-500",
-  Rust: "bg-orange-500",
-  Java: "bg-red-500",
-};
+  JavaScript: 'bg-yellow-400',
+  TypeScript: 'bg-blue-500',
+  Python: 'bg-green-500',
+  Shell: 'bg-gray-500',
+  Go: 'bg-cyan-500',
+  Rust: 'bg-orange-500',
+  Java: 'bg-red-500'
+}
 
 const formatDate = (date: string) => {
-  const d = new Date(date);
-  const now = new Date();
-  const diff = now.getTime() - d.getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days} days ago`;
-  return d.toLocaleDateString();
-};
+  const d = new Date(date)
+  const now = new Date()
+  const diff = now.getTime() - d.getTime()
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return `${days} days ago`
+  return d.toLocaleDateString()
+}
 
 const syncRepos = async () => {
-  syncing.value = true;
+  syncing.value = true
   try {
-    await api.post("/github/sync");
-    repos.value = await api.get<Repo[]>("/github/repos");
+    await api.post('/github/sync')
+    repos.value = await api.get<Repo[]>('/github/repos')
   } catch (e) {
-    console.error("Failed to sync repos:", e);
+    console.error('Failed to sync repos:', e)
   } finally {
-    syncing.value = false;
+    syncing.value = false
   }
-};
+}
 
 const setUsername = async () => {
-  if (!usernameInput.value) return;
+  if (!usernameInput.value) return
   try {
-    await api.post("/github/username", { username: usernameInput.value });
-    showUsernameModal.value = false;
-    await syncRepos();
+    await api.post('/github/username', { username: usernameInput.value })
+    showUsernameModal.value = false
+    await syncRepos()
   } catch (e) {
-    console.error("Failed to set username:", e);
+    console.error('Failed to set username:', e)
   }
-};
+}
 
 onMounted(async () => {
   try {
-    repos.value = await api.get<Repo[]>("/github/repos");
+    repos.value = await api.get<Repo[]>('/github/repos')
   } catch (e) {
-    console.error("Failed to load repos:", e);
+    console.error('Failed to load repos:', e)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-});
+})
 </script>
 
 <template>
@@ -115,7 +137,9 @@ onMounted(async () => {
           <div class="flex items-center gap-4">
             <UIcon name="i-lucide-github" class="size-8" />
             <div class="flex-1">
-              <p class="text-sm text-muted">Connected as</p>
+              <p class="text-sm text-muted">
+                Connected as
+              </p>
               <p class="font-semibold">
                 @{{ user?.githubUsername || "Not set" }}
               </p>
@@ -141,13 +165,15 @@ onMounted(async () => {
             name="i-lucide-github"
             class="size-12 text-muted mx-auto mb-4"
           />
-          <h3 class="font-semibold mb-2">Connect your GitHub</h3>
+          <h3 class="font-semibold mb-2">
+            Connect your GitHub
+          </h3>
           <p class="text-muted mb-4">
             Set your GitHub username to view your repositories
           </p>
-          <UButton icon="i-lucide-link" @click="showUsernameModal = true"
-            >Set Username</UButton
-          >
+          <UButton icon="i-lucide-link" @click="showUsernameModal = true">
+            Set Username
+          </UButton>
         </div>
 
         <!-- Repos List -->
@@ -176,7 +202,7 @@ onMounted(async () => {
                       v-if="repo.language"
                       :class="[
                         'size-3 rounded-full',
-                        languageColors[repo.language] || 'bg-gray-400',
+                        languageColors[repo.language] || 'bg-gray-400'
                       ]"
                     />
                     <span v-if="repo.language" class="text-xs text-muted">{{
@@ -247,7 +273,9 @@ onMounted(async () => {
     <template #content>
       <UCard>
         <template #header>
-          <h3 class="font-semibold">Set GitHub Username</h3>
+          <h3 class="font-semibold">
+            Set GitHub Username
+          </h3>
         </template>
         <UInput
           v-model="usernameInput"
@@ -255,10 +283,12 @@ onMounted(async () => {
           class="mb-4"
         />
         <div class="flex justify-end gap-2">
-          <UButton variant="ghost" @click="showUsernameModal = false"
-            >Cancel</UButton
-          >
-          <UButton @click="setUsername">Save</UButton>
+          <UButton variant="ghost" @click="showUsernameModal = false">
+            Cancel
+          </UButton>
+          <UButton @click="setUsername">
+            Save
+          </UButton>
         </div>
       </UCard>
     </template>

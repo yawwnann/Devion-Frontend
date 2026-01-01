@@ -25,6 +25,7 @@
     "tailwindcss": "^4.1.18",
     "vue-advanced-cropper": "^2.8.9",
     "vue-chartjs": "^5.3.3",
+    "vuedraggable": "^4.1.0",
     "zod": "^4.2.1"
   },
   "devDependencies": {

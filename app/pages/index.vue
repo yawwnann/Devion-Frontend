@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { Line, Doughnut } from "vue-chartjs";
+import { ref, computed, onMounted } from 'vue'
+import { Line, Doughnut } from 'vue-chartjs'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -10,8 +10,8 @@ import {
   ArcElement,
   Title,
   Tooltip,
-  Legend,
-} from "chart.js";
+  Legend
+} from 'chart.js'
 
 ChartJS.register(
   CategoryScale,
@@ -22,58 +22,58 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend
-);
+)
 
 /* =====================
    Types
 ===================== */
 interface Page {
-  id: string;
-  title: string;
-  slug: string;
-  isPublished: boolean;
+  id: string
+  title: string
+  slug: string
+  isPublished: boolean
 }
 
 interface GithubRepo {
-  id: string;
-  name: string;
-  description?: string;
-  stars: number;
-  url: string;
+  id: string
+  name: string
+  description?: string
+  stars: number
+  url: string
 }
 
 interface Project {
-  id: string;
-  name: string;
-  status: string;
-  order: string | null;
-  information: string | null;
-  createdAt: string;
+  id: string
+  name: string
+  status: string
+  order: string | null
+  information: string | null
+  createdAt: string
   category?: {
-    id: string;
-    name: string;
-    color: string;
-  } | null;
+    id: string
+    name: string
+    color: string
+  } | null
   payment?: {
-    id: string;
-    name: string;
-    color: string;
-  } | null;
+    id: string
+    name: string
+    color: string
+  } | null
 }
 
 /* =====================
    Composables
 ===================== */
-const api = useApi();
-const { user } = useAuth();
+const api = useApi()
+const { user } = useAuth()
 
 /* =====================
    State
 ===================== */
-const pages = ref<Page[]>([]);
-const githubRepos = ref<GithubRepo[]>([]);
-const projects = ref<Project[]>([]);
-const loading = ref(true);
+const pages = ref<Page[]>([])
+const githubRepos = ref<GithubRepo[]>([])
+const projects = ref<Project[]>([])
+const loading = ref(true)
 
 /* =====================
    Lifecycle
@@ -81,105 +81,105 @@ const loading = ref(true);
 onMounted(async () => {
   try {
     const [pagesData, reposData, projectsData] = await Promise.all([
-      api.get<Page[]>("/pages"),
-      api.get<GithubRepo[]>("/github/repos"),
-      api.get<Project[]>("/projects"),
-    ]);
+      api.get<Page[]>('/pages'),
+      api.get<GithubRepo[]>('/github/repos'),
+      api.get<Project[]>('/projects')
+    ])
 
-    pages.value = pagesData;
-    githubRepos.value = reposData;
-    projects.value = projectsData;
+    pages.value = pagesData
+    githubRepos.value = reposData
+    projects.value = projectsData
 
-    console.log("📄 Pages loaded:", pages.value);
-    console.log("🐙 Repos loaded:", githubRepos.value);
-    console.log("📊 Projects loaded:", projects.value);
+    console.log('📄 Pages loaded:', pages.value)
+    console.log('🐙 Repos loaded:', githubRepos.value)
+    console.log('📊 Projects loaded:', projects.value)
   } catch (error) {
-    console.error("Failed to load dashboard data:", error);
+    console.error('Failed to load dashboard data:', error)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-});
+})
 
 /* =====================
    Computed
 ===================== */
 const totalStars = computed(() => {
-  return githubRepos.value.reduce((sum, repo) => sum + repo.stars, 0);
-});
+  return githubRepos.value.reduce((sum, repo) => sum + repo.stars, 0)
+})
 
 const publishedPages = computed(() => {
-  return pages.value.filter((p) => p.isPublished).length;
-});
+  return pages.value.filter(p => p.isPublished).length
+})
 
 const projectStats = computed(() => {
-  const total = projects.value.length;
-  const todo = projects.value.filter((p) => p.status === "TODO").length;
+  const total = projects.value.length
+  const todo = projects.value.filter(p => p.status === 'TODO').length
   const inProgress = projects.value.filter(
-    (p) => p.status === "IN_PROGRESS"
-  ).length;
-  const done = projects.value.filter((p) => p.status === "DONE").length;
-  return { total, todo, inProgress, done };
-});
+    p => p.status === 'IN_PROGRESS'
+  ).length
+  const done = projects.value.filter(p => p.status === 'DONE').length
+  return { total, todo, inProgress, done }
+})
 
 // Projects per month (last 6 months)
 const projectsPerMonth = computed(() => {
-  const months = [];
-  const counts = [];
-  const now = new Date();
+  const months = []
+  const counts = []
+  const now = new Date()
 
   for (let i = 5; i >= 0; i--) {
-    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const monthName = date.toLocaleDateString("en-US", { month: "short" });
-    months.push(monthName);
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const monthName = date.toLocaleDateString('en-US', { month: 'short' })
+    months.push(monthName)
 
     const count = projects.value.filter((p) => {
-      const projectDate = new Date(p.createdAt);
+      const projectDate = new Date(p.createdAt)
       return (
-        projectDate.getMonth() === date.getMonth() &&
-        projectDate.getFullYear() === date.getFullYear()
-      );
-    }).length;
-    counts.push(count);
+        projectDate.getMonth() === date.getMonth()
+        && projectDate.getFullYear() === date.getFullYear()
+      )
+    }).length
+    counts.push(count)
   }
 
-  return { months, counts };
-});
+  return { months, counts }
+})
 
 // Projects by category
 const projectsByCategory = computed(() => {
-  const categoryMap = new Map<string, number>();
+  const categoryMap = new Map<string, number>()
 
   projects.value.forEach((p) => {
     if (p.category) {
-      const name = p.category.name;
-      categoryMap.set(name, (categoryMap.get(name) || 0) + 1);
+      const name = p.category.name
+      categoryMap.set(name, (categoryMap.get(name) || 0) + 1)
     } else {
       categoryMap.set(
-        "Uncategorized",
-        (categoryMap.get("Uncategorized") || 0) + 1
-      );
+        'Uncategorized',
+        (categoryMap.get('Uncategorized') || 0) + 1
+      )
     }
-  });
+  })
 
   return {
     labels: Array.from(categoryMap.keys()),
-    data: Array.from(categoryMap.values()),
-  };
-});
+    data: Array.from(categoryMap.values())
+  }
+})
 
 // Chart data
 const monthlyChartData = computed(() => ({
   labels: projectsPerMonth.value.months,
   datasets: [
     {
-      label: "Projects Created",
+      label: 'Projects Created',
       data: projectsPerMonth.value.counts,
-      borderColor: "rgb(249, 115, 22)",
-      backgroundColor: "rgba(249, 115, 22, 0.1)",
-      tension: 0.4,
-    },
-  ],
-}));
+      borderColor: 'rgb(249, 115, 22)',
+      backgroundColor: 'rgba(249, 115, 22, 0.1)',
+      tension: 0.4
+    }
+  ]
+}))
 
 const categoryChartData = computed(() => ({
   labels: projectsByCategory.value.labels,
@@ -187,44 +187,44 @@ const categoryChartData = computed(() => ({
     {
       data: projectsByCategory.value.data,
       backgroundColor: [
-        "rgba(249, 115, 22, 0.8)",
-        "rgba(59, 130, 246, 0.8)",
-        "rgba(16, 185, 129, 0.8)",
-        "rgba(139, 92, 246, 0.8)",
-        "rgba(236, 72, 153, 0.8)",
-        "rgba(234, 179, 8, 0.8)",
-      ],
-    },
-  ],
-}));
+        'rgba(249, 115, 22, 0.8)',
+        'rgba(59, 130, 246, 0.8)',
+        'rgba(16, 185, 129, 0.8)',
+        'rgba(139, 92, 246, 0.8)',
+        'rgba(236, 72, 153, 0.8)',
+        'rgba(234, 179, 8, 0.8)'
+      ]
+    }
+  ]
+}))
 
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
     legend: {
-      display: false,
-    },
+      display: false
+    }
   },
   scales: {
     y: {
       beginAtZero: true,
       ticks: {
-        stepSize: 1,
-      },
-    },
-  },
-};
+        stepSize: 1
+      }
+    }
+  }
+}
 
 const doughnutOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
     legend: {
-      position: "bottom" as const,
-    },
-  },
-};
+      position: 'bottom' as const
+    }
+  }
+}
 </script>
 
 <template>
@@ -277,8 +277,12 @@ const doughnutOptions = {
           <UCard>
             <div class="flex items-start justify-between">
               <div>
-                <p class="text-sm text-muted">Portfolio Pages</p>
-                <p class="text-3xl font-bold mt-2">{{ pages.length }}</p>
+                <p class="text-sm text-muted">
+                  Portfolio Pages
+                </p>
+                <p class="text-3xl font-bold mt-2">
+                  {{ pages.length }}
+                </p>
                 <p class="text-sm text-muted mt-2">
                   {{ publishedPages }} published
                 </p>
@@ -293,8 +297,12 @@ const doughnutOptions = {
           <UCard>
             <div class="flex items-start justify-between">
               <div>
-                <p class="text-sm text-muted">GitHub Projects</p>
-                <p class="text-3xl font-bold mt-2">{{ githubRepos.length }}</p>
+                <p class="text-sm text-muted">
+                  GitHub Projects
+                </p>
+                <p class="text-3xl font-bold mt-2">
+                  {{ githubRepos.length }}
+                </p>
                 <p class="text-sm text-muted mt-2">
                   {{ totalStars }} total stars
                 </p>
@@ -309,8 +317,12 @@ const doughnutOptions = {
           <UCard>
             <div class="flex items-start justify-between">
               <div>
-                <p class="text-sm text-muted">Active Projects</p>
-                <p class="text-3xl font-bold mt-2">{{ projectStats.total }}</p>
+                <p class="text-sm text-muted">
+                  Active Projects
+                </p>
+                <p class="text-3xl font-bold mt-2">
+                  {{ projectStats.total }}
+                </p>
                 <p class="text-sm text-muted mt-2">
                   {{ projectStats.inProgress }} in progress
                 </p>
@@ -330,7 +342,9 @@ const doughnutOptions = {
           >
             <div class="flex flex-col h-full justify-between">
               <div>
-                <p class="text-sm font-medium">Ready to create?</p>
+                <p class="text-sm font-medium">
+                  Ready to create?
+                </p>
                 <p class="text-xs text-muted mt-1">
                   Start building your portfolio
                 </p>
@@ -367,8 +381,12 @@ const doughnutOptions = {
             <template #header>
               <div class="flex items-center justify-between">
                 <div>
-                  <h3 class="text-lg font-semibold">Projects Per Month</h3>
-                  <p class="text-sm text-muted mt-1">Last 6 months activity</p>
+                  <h3 class="text-lg font-semibold">
+                    Projects Per Month
+                  </h3>
+                  <p class="text-sm text-muted mt-1">
+                    Last 6 months activity
+                  </p>
                 </div>
                 <div class="p-2 bg-orange-500/10 rounded-lg">
                   <UIcon
@@ -391,8 +409,12 @@ const doughnutOptions = {
             <template #header>
               <div class="flex items-center justify-between">
                 <div>
-                  <h3 class="text-lg font-semibold">Projects by Category</h3>
-                  <p class="text-sm text-muted mt-1">Distribution overview</p>
+                  <h3 class="text-lg font-semibold">
+                    Projects by Category
+                  </h3>
+                  <p class="text-sm text-muted mt-1">
+                    Distribution overview
+                  </p>
                 </div>
                 <div class="p-2 bg-blue-500/10 rounded-lg">
                   <UIcon
@@ -420,7 +442,9 @@ const doughnutOptions = {
           <UCard>
             <template #header>
               <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold">Recent Pages</h3>
+                <h3 class="text-lg font-semibold">
+                  Recent Pages
+                </h3>
                 <UButton
                   to="/pages"
                   variant="ghost"
@@ -437,7 +461,9 @@ const doughnutOptions = {
                 name="i-lucide-file-text"
                 class="size-12 text-muted mx-auto mb-3"
               />
-              <p class="text-sm text-muted">No pages yet</p>
+              <p class="text-sm text-muted">
+                No pages yet
+              </p>
             </div>
 
             <div v-else class="space-y-3">
@@ -467,7 +493,9 @@ const doughnutOptions = {
           <UCard>
             <template #header>
               <div class="flex items-center justify-between">
-                <h3 class="text-lg font-semibold">Recent Projects</h3>
+                <h3 class="text-lg font-semibold">
+                  Recent Projects
+                </h3>
                 <UButton
                   to="/projects"
                   variant="ghost"
@@ -484,7 +512,9 @@ const doughnutOptions = {
                 name="i-lucide-folder-kanban"
                 class="size-12 text-muted mx-auto mb-3"
               />
-              <p class="text-sm text-muted">No projects yet</p>
+              <p class="text-sm text-muted">
+                No projects yet
+              </p>
             </div>
 
             <div v-else class="space-y-3">
@@ -494,7 +524,9 @@ const doughnutOptions = {
                 class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 <div class="flex-1 min-w-0">
-                  <p class="font-medium truncate">{{ project.name }}</p>
+                  <p class="font-medium truncate">
+                    {{ project.name }}
+                  </p>
                   <p class="text-xs text-muted truncate">
                     {{ project.order || "No client" }}
                   </p>
@@ -505,8 +537,8 @@ const doughnutOptions = {
                     project.status === 'DONE'
                       ? 'success'
                       : project.status === 'IN_PROGRESS'
-                      ? 'warning'
-                      : 'neutral'
+                        ? 'warning'
+                        : 'neutral'
                   "
                   variant="subtle"
                   size="xs"
@@ -515,8 +547,8 @@ const doughnutOptions = {
                     project.status === "DONE"
                       ? "Done"
                       : project.status === "IN_PROGRESS"
-                      ? "In Progress"
-                      : "To Do"
+                        ? "In Progress"
+                        : "To Do"
                   }}
                 </UBadge>
               </div>
@@ -526,11 +558,15 @@ const doughnutOptions = {
           <!-- GitHub -->
           <UCard>
             <template #header>
-              <h3 class="text-lg font-semibold">Top GitHub Projects</h3>
+              <h3 class="text-lg font-semibold">
+                Top GitHub Projects
+              </h3>
             </template>
 
             <div v-if="githubRepos.length === 0" class="text-center py-8">
-              <p class="text-sm text-muted">No repositories synced</p>
+              <p class="text-sm text-muted">
+                No repositories synced
+              </p>
             </div>
 
             <div v-else class="space-y-3">
