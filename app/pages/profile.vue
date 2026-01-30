@@ -354,7 +354,6 @@ onMounted(async () => {
                       <UTextarea
                         v-model="profileForm.bio"
                         placeholder="Write a short bio about yourself"
-                        rows="3"
                       />
                     </div>
                     <div>
@@ -487,28 +486,30 @@ onMounted(async () => {
             </div>
 
             <!-- Change Password Form -->
-            <div v-else class="space-y-3">
-              <UInput
-                v-model="passwordForm.currentPassword"
-                type="password"
-                placeholder="Current password"
-                label="Current Password"
-                size="lg"
-              />
-              <UInput
-                v-model="passwordForm.newPassword"
-                type="password"
-                placeholder="New password"
-                label="New Password"
-                size="lg"
-              />
-              <UInput
-                v-model="passwordForm.confirmPassword"
-                type="password"
-                placeholder="Confirm new password"
-                label="Confirm Password"
-                size="lg"
-              />
+            <div v-else>
+              <div class="flex justify-between mb-4">
+                <UInput
+                  v-model="passwordForm.currentPassword"
+                  type="password"
+                  placeholder="Current password"
+                  label="Current Password"
+                  size="lg"
+                />
+                <UInput
+                  v-model="passwordForm.newPassword"
+                  type="password"
+                  placeholder="New password"
+                  label="New Password"
+                  size="lg"
+                />
+                <UInput
+                  v-model="passwordForm.confirmPassword"
+                  type="password"
+                  placeholder="Confirm new password"
+                  label="Confirm Password"
+                  size="lg"
+                />
+              </div>
               <div class="flex gap-2 pt-2">
                 <UButton size="sm" @click="changePassword">
                   Update Password

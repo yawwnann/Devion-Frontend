@@ -145,9 +145,7 @@ export const useApi = () => {
       ...options.headers,
     };
 
-    console.log("🔑 Token:", tokenValue ? "Present" : "Missing");
-    console.log("📡 Request:", `${API_URL}${endpoint}`);
-    console.log("📋 Headers:", headers);
+  
 
     const res = await fetch(`${API_URL}${endpoint}`, {
       ...options,

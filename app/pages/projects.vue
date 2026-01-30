@@ -30,6 +30,8 @@ interface Project {
   githubRepo?: string | null;
   githubUrl?: string | null;
   lastSyncedAt?: string | null;
+  startDate?: string | null;
+  dueDate?: string | null;
   createdAt?: string;
 }
 
@@ -88,6 +90,8 @@ const form = ref({
   categoryId: "",
   paymentId: "",
   information: "",
+  startDate: "",
+  dueDate: "",
 });
 
 const categoryForm = ref({ name: "", color: "zinc" });
@@ -401,6 +405,8 @@ const createProject = async () => {
     categoryId: "",
     paymentId: "",
     information: "",
+    startDate: "",
+    dueDate: "",
   };
   await loadData();
 };
@@ -494,6 +500,8 @@ const openNewProjectModal = () => {
     categoryId: "",
     paymentId: "",
     information: "",
+    startDate: "",
+    dueDate: "",
   };
   showModal.value = true;
 };
@@ -1342,6 +1350,16 @@ onMounted(loadData);
                   {{ pm.name }}
                 </option>
               </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-2">Start Date</label>
+              <DatePicker v-model="form.startDate" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-2">Due Date</label>
+              <DatePicker v-model="form.dueDate" />
             </div>
           </div>
         </div>

@@ -101,10 +101,21 @@ const githubRepos = ref<GithubRepo[]>([]);
 const projects = ref<Project[]>([]);
 const loading = ref(true);
 
+// Animation states
+const showHeader = ref(false);
+const showStats = ref(false);
+const showCharts = ref(false);
+const showLists = ref(false);
+
 /* =====================
    Lifecycle
 ===================== */
 onMounted(async () => {
+  // Start header animation immediately
+  setTimeout(() => {
+    showHeader.value = true;
+  }, 100);
+
   try {
     const [pagesData, reposData, projectsData] = await Promise.all([
       api.get<Page[]>("/pages"),
@@ -115,14 +126,21 @@ onMounted(async () => {
     pages.value = pagesData;
     githubRepos.value = reposData;
     projects.value = projectsData;
-
-    console.log("📄 Pages loaded:", pages.value);
-    console.log("🐙 Repos loaded:", githubRepos.value);
-    console.log("📊 Projects loaded:", projects.value);
   } catch (error) {
     console.error("Failed to load dashboard data:", error);
   } finally {
     loading.value = false;
+
+    // Staggered animations after loading
+    setTimeout(() => {
+      showStats.value = true;
+    }, 200);
+    setTimeout(() => {
+      showCharts.value = true;
+    }, 400);
+    setTimeout(() => {
+      showLists.value = true;
+    }, 600);
   }
 });
 
@@ -193,16 +211,13 @@ const projectsByCategory = computed(() => {
   };
 });
 
-// Chart data with gradient
-const lineChartRef = ref<any>(null);
-
 const monthlyChartData = computed(() => ({
   labels: projectsPerMonth.value.months,
   datasets: [
     {
       label: "Projects Created",
       data: projectsPerMonth.value.counts,
-      borderColor: "rgb(16, 185, 129)", // emerald-500
+      borderColor: "rgb(16, 185, 129)",
       backgroundColor: (context: any) => {
         const chart = context.chart;
         const { ctx, chartArea } = chart;
@@ -243,6 +258,29 @@ const categoryChartData = computed(() => ({
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
+  animation: {
+    duration: 1500,
+    easing: "easeOutQuart" as const,
+    delay: (context: any) => {
+      let delay = 0;
+      if (context.type === "data" && context.mode === "default") {
+        delay = context.dataIndex * 100 + context.datasetIndex * 50;
+      }
+      return delay;
+    },
+  },
+  animations: {
+    y: {
+      from: (context: any) => {
+        if (context.type === "data") {
+          return context.chart.scales.y.getPixelForValue(0);
+        }
+      },
+    },
+    x: {
+      from: 0,
+    },
+  },
   interaction: {
     mode: "index" as const,
     intersect: false,
@@ -274,12 +312,23 @@ const chartOptions = {
   },
 };
 
-const doughnutOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      position: "bottom" as const,
+// Bar chart specific options with grow-up animation
+const barChartOptions = {
+  ...chartOptions,
+  animation: {
+    duration: 1200,
+    easing: "easeOutBounce" as const,
+    delay: (context: any) => {
+      return context.dataIndex * 150;
+    },
+  },
+  animations: {
+    y: {
+      from: (context: any) => {
+        if (context.type === "data") {
+          return context.chart.scales.y.getPixelForValue(0);
+        }
+      },
     },
   },
 };
@@ -298,12 +347,22 @@ const doughnutOptions = {
     <template #body>
       <div class="p-6 space-y-6">
         <!-- Header -->
-        <div>
+        <div
+          class="transition-all duration-700 ease-out"
+          :class="
+            showHeader
+              ? 'translate-y-0 opacity-100'
+              : '-translate-y-4 opacity-0'
+          "
+        >
           <div class="flex items-center gap-2">
             <h1 class="text-3xl font-bold">
               Welcome back, {{ user?.name || "Developer" }}
             </h1>
-            <UIcon name="i-lucide-sparkles" class="size-6 text-primary" />
+            <UIcon
+              name="i-lucide-sparkles"
+              class="size-6 text-primary animate-pulse"
+            />
           </div>
           <p class="text-muted mt-1">
             Build your developer portfolio with Notion-style pages and GitHub
@@ -332,7 +391,15 @@ const doughnutOptions = {
         <!-- Stats -->
         <div v-else class="grid grid-cols-1 md:grid-cols-4 gap-6">
           <!-- Pages -->
-          <UCard>
+          <UCard
+            class="transition-all duration-500 ease-out hover:shadow-lg hover:-translate-y-1"
+            :class="
+              showStats
+                ? 'translate-y-0 opacity-100'
+                : 'translate-y-8 opacity-0'
+            "
+            :style="{ transitionDelay: '0ms' }"
+          >
             <div class="flex items-start justify-between">
               <div>
                 <p class="text-sm text-muted">Portfolio Pages</p>
@@ -350,7 +417,15 @@ const doughnutOptions = {
           </UCard>
 
           <!-- GitHub -->
-          <UCard>
+          <UCard
+            class="transition-all duration-500 ease-out hover:shadow-lg hover:-translate-y-1"
+            :class="
+              showStats
+                ? 'translate-y-0 opacity-100'
+                : 'translate-y-8 opacity-0'
+            "
+            :style="{ transitionDelay: '100ms' }"
+          >
             <div class="flex items-start justify-between">
               <div>
                 <p class="text-sm text-muted">GitHub Projects</p>
@@ -368,7 +443,15 @@ const doughnutOptions = {
           </UCard>
 
           <!-- Projects -->
-          <UCard>
+          <UCard
+            class="transition-all duration-500 ease-out hover:shadow-lg hover:-translate-y-1"
+            :class="
+              showStats
+                ? 'translate-y-0 opacity-100'
+                : 'translate-y-8 opacity-0'
+            "
+            :style="{ transitionDelay: '200ms' }"
+          >
             <div class="flex items-start justify-between">
               <div>
                 <p class="text-sm text-muted">Active Projects</p>
@@ -390,7 +473,13 @@ const doughnutOptions = {
 
           <!-- CTA -->
           <UCard
-            class="bg-linear-to-br from-primary/10 to-primary/5 border-primary/20"
+            class="bg-linear-to-br from-primary/10 to-primary/5 border-primary/20 transition-all duration-500 ease-out hover:shadow-lg hover:-translate-y-1"
+            :class="
+              showStats
+                ? 'translate-y-0 opacity-100'
+                : 'translate-y-8 opacity-0'
+            "
+            :style="{ transitionDelay: '300ms' }"
           >
             <div class="flex flex-col h-full justify-between">
               <div>
@@ -427,7 +516,15 @@ const doughnutOptions = {
           class="grid grid-cols-1 lg:grid-cols-2 gap-6"
         >
           <!-- Monthly Projects Chart -->
-          <UCard>
+          <UCard
+            class="transition-all duration-700 ease-out hover:shadow-lg"
+            :class="
+              showCharts
+                ? 'translate-y-0 opacity-100 scale-100'
+                : 'translate-y-8 opacity-0 scale-95'
+            "
+            :style="{ transitionDelay: '0ms' }"
+          >
             <template #header>
               <div class="flex items-center justify-between">
                 <div>
@@ -445,13 +542,25 @@ const doughnutOptions = {
 
             <div class="h-64">
               <ClientOnly>
-                <Line :data="monthlyChartData" :options="chartOptions" />
+                <Line
+                  v-if="showCharts"
+                  :data="monthlyChartData"
+                  :options="chartOptions"
+                />
               </ClientOnly>
             </div>
           </UCard>
 
           <!-- Category Distribution Chart -->
-          <UCard>
+          <UCard
+            class="transition-all duration-700 ease-out hover:shadow-lg"
+            :class="
+              showCharts
+                ? 'translate-y-0 opacity-100 scale-100'
+                : 'translate-y-8 opacity-0 scale-95'
+            "
+            :style="{ transitionDelay: '150ms' }"
+          >
             <template #header>
               <div class="flex items-center justify-between">
                 <div>
@@ -469,7 +578,11 @@ const doughnutOptions = {
 
             <div class="h-64">
               <ClientOnly>
-                <Bar :data="categoryChartData" :options="chartOptions" />
+                <Bar
+                  v-if="showCharts"
+                  :data="categoryChartData"
+                  :options="barChartOptions"
+                />
               </ClientOnly>
             </div>
           </UCard>
@@ -478,7 +591,15 @@ const doughnutOptions = {
         <!-- Lists -->
         <div v-if="!loading" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <!-- Pages -->
-          <UCard>
+          <UCard
+            class="transition-all duration-700 ease-out hover:shadow-lg"
+            :class="
+              showLists
+                ? 'translate-y-0 opacity-100'
+                : 'translate-y-8 opacity-0'
+            "
+            :style="{ transitionDelay: '0ms' }"
+          >
             <template #header>
               <div class="flex items-center justify-between">
                 <h3 class="text-lg font-semibold">Recent Pages</h3>
@@ -503,10 +624,16 @@ const doughnutOptions = {
 
             <div v-else class="space-y-3">
               <NuxtLink
-                v-for="page in pages.slice(0, 5)"
+                v-for="(page, index) in pages.slice(0, 5)"
                 :key="page.id"
                 :to="`/pages/${page.id}`"
-                class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-300"
+                :class="
+                  showLists
+                    ? 'translate-x-0 opacity-100'
+                    : '-translate-x-4 opacity-0'
+                "
+                :style="{ transitionDelay: `${index * 50}ms` }"
               >
                 <div>
                   <p class="font-medium truncate">{{ page.title }}</p>
@@ -525,7 +652,15 @@ const doughnutOptions = {
           </UCard>
 
           <!-- Projects -->
-          <UCard>
+          <UCard
+            class="transition-all duration-700 ease-out hover:shadow-lg"
+            :class="
+              showLists
+                ? 'translate-y-0 opacity-100'
+                : 'translate-y-8 opacity-0'
+            "
+            :style="{ transitionDelay: '100ms' }"
+          >
             <template #header>
               <div class="flex items-center justify-between">
                 <h3 class="text-lg font-semibold">Recent Projects</h3>
@@ -550,9 +685,15 @@ const doughnutOptions = {
 
             <div v-else class="space-y-3">
               <div
-                v-for="project in projects.slice(0, 5)"
+                v-for="(project, index) in projects.slice(0, 5)"
                 :key="project.id"
-                class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-300"
+                :class="
+                  showLists
+                    ? 'translate-x-0 opacity-100'
+                    : '-translate-x-4 opacity-0'
+                "
+                :style="{ transitionDelay: `${index * 50}ms` }"
               >
                 <div class="flex-1 min-w-0">
                   <p class="font-medium truncate">
@@ -587,7 +728,15 @@ const doughnutOptions = {
           </UCard>
 
           <!-- GitHub -->
-          <UCard>
+          <UCard
+            class="transition-all duration-700 ease-out hover:shadow-lg"
+            :class="
+              showLists
+                ? 'translate-y-0 opacity-100'
+                : 'translate-y-8 opacity-0'
+            "
+            :style="{ transitionDelay: '200ms' }"
+          >
             <template #header>
               <h3 class="text-lg font-semibold">Top GitHub Projects</h3>
             </template>
@@ -598,11 +747,17 @@ const doughnutOptions = {
 
             <div v-else class="space-y-3">
               <a
-                v-for="repo in githubRepos.slice(0, 5)"
+                v-for="(repo, index) in githubRepos.slice(0, 5)"
                 :key="repo.id"
                 :href="repo.url"
                 target="_blank"
-                class="flex justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                class="flex justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-300"
+                :class="
+                  showLists
+                    ? 'translate-x-0 opacity-100'
+                    : '-translate-x-4 opacity-0'
+                "
+                :style="{ transitionDelay: `${index * 50}ms` }"
               >
                 <div>
                   <p class="font-medium truncate">{{ repo.name }}</p>

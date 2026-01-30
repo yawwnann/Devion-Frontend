@@ -23,8 +23,9 @@ export const useAuth = () => {
     try {
       user.value = await api.get<User>("/auth/me");
       return user.value;
-    } catch {
-      token.value = null;
+    } catch (error) {
+      console.error("Failed to fetch user:", error);
+      // Don't clear token immediately, let the caller decide
       user.value = null;
       return null;
     }

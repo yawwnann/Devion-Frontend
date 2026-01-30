@@ -224,15 +224,17 @@ const handleRegister = async () => {
     <!-- Right Panel - Visual -->
     <div class="hidden lg:block lg:w-1/2 relative overflow-hidden bg-black">
       <!-- Plasma Background -->
-      <Plasma
-        color="#22c55e"
-        :speed="0.6"
-        direction="forward"
-        :scale="1.1"
-        :opacity="0.8"
-        :mouse-interactive="true"
-        class="absolute inset-0"
-      />
+      <ClientOnly>
+        <Plasma
+          color="#22c55e"
+          :speed="0.6"
+          direction="forward"
+          :scale="1.1"
+          :opacity="0.8"
+          :mouse-interactive="true"
+          class="absolute inset-0"
+        />
+      </ClientOnly>
 
       <!-- Content Overlay -->
       <div

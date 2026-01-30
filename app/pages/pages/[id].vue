@@ -3,6 +3,8 @@ const route = useRoute()
 const api = useApi()
 const pageId = route.params.id as string
 
+
+
 interface Block {
   id: string
   type: string
@@ -143,13 +145,13 @@ onMounted(async () => {
             />
             <span v-else class="text-xs text-muted">Saved</span>
             <UButton
-              :color="page?.isPublished ? 'green' : 'gray'"
+              :color="page?.isPublished ? 'success' : 'neutral'"
               size="sm"
               @click="togglePublish"
             >
               {{ page?.isPublished ? "Published" : "Publish" }}
             </UButton>
-          </div>
+          </div> 
         </template>
       </UDashboardNavbar>
     </template>
@@ -185,7 +187,7 @@ onMounted(async () => {
                 icon="i-lucide-trash-2"
                 variant="ghost"
                 size="xs"
-                color="red"
+                color="warning"
                 @click="deleteBlock(block.id)"
               />
             </div>
@@ -303,7 +305,7 @@ onMounted(async () => {
         <div class="mt-6 flex flex-wrap gap-2">
           <UButton
             variant="ghost"
-            color="gray"
+            color="neutral"
             icon="i-lucide-type"
             size="sm"
             @click="addBlock('text')"
@@ -312,7 +314,7 @@ onMounted(async () => {
           </UButton>
           <UButton
             variant="ghost"
-            color="gray"
+            color="neutral"
             icon="i-lucide-heading"
             size="sm"
             @click="addBlock('heading')"
@@ -321,7 +323,7 @@ onMounted(async () => {
           </UButton>
           <UButton
             variant="ghost"
-            color="gray"
+            color="neutral"
             icon="i-lucide-list"
             size="sm"
             @click="addBlock('bullet')"
@@ -330,7 +332,7 @@ onMounted(async () => {
           </UButton>
           <UButton
             variant="ghost"
-            color="gray"
+            color="neutral"
             icon="i-lucide-check-square"
             size="sm"
             @click="addBlock('todo')"
@@ -339,7 +341,7 @@ onMounted(async () => {
           </UButton>
           <UButton
             variant="ghost"
-            color="gray"
+            color="neutral"
             icon="i-lucide-quote"
             size="sm"
             @click="addBlock('quote')"
@@ -348,7 +350,7 @@ onMounted(async () => {
           </UButton>
           <UButton
             variant="ghost"
-            color="gray"
+            color="neutral"
             icon="i-lucide-code"
             size="sm"
             @click="addBlock('code')"
