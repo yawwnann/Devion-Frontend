@@ -22,6 +22,7 @@
     "canvas-confetti": "^1.9.4",
     "chart.js": "^4.5.1",
     "date-fns": "^4.1.0",
+    "marked": "^17.0.1",
     "nuxt": "^4.2.2",
     "ogl": "^1.0.11",
     "tailwindcss": "^4.1.18",

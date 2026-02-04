@@ -13,6 +13,7 @@ export default withNuxt({
     "@stylistic/arrow-parens": "off",
     "@stylistic/operator-linebreak": "off",
     "@stylistic/eol-last": "off",
+    "@stylistic/quote-props": "off",
 
     // Vue rules
     "vue/no-multiple-template-root": "off",

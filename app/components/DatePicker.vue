@@ -121,10 +121,10 @@ const nextMonth = () => {
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">{{ currentMonthName }}</h3>
           <div class="flex gap-1">
-            <button @click="prevMonth" class="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition">
+            <button class="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition" @click="prevMonth">
               <UIcon name="i-lucide-chevron-left" class="size-4 text-zinc-500" />
             </button>
-            <button @click="nextMonth" class="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition">
+            <button class="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition" @click="nextMonth">
               <UIcon name="i-lucide-chevron-right" class="size-4 text-zinc-500" />
             </button>
           </div>
@@ -139,20 +139,20 @@ const nextMonth = () => {
           <button
             v-for="(dayInfo, idx) in calendarDays"
             :key="idx"
-            @click="selectDate(dayInfo.date)"
             class="h-8 w-8 rounded-full flex items-center justify-center text-sm transition-all"
             :class="[
               !dayInfo.isCurrentMonth ? 'text-zinc-300 dark:text-zinc-700' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800',
               isSelected(dayInfo.date) ? '!bg-primary-600 !text-white hover:!bg-primary-700' : '',
               isToday(dayInfo.date) && !isSelected(dayInfo.date) ? 'border border-primary-500 text-primary-600' : ''
             ]"
+            @click="selectDate(dayInfo.date)"
           >
             {{ dayInfo.day }}
           </button>
         </div>
-        
+
         <div class="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800 flex justify-end">
-            <button @click="emit('update:modelValue', null); isOpen = false" class="text-xs text-muted hover:text-red-500 transition">Clear Date</button>
+            <button class="text-xs text-muted hover:text-red-500 transition" @click="emit('update:modelValue', null); isOpen = false">Clear Date</button>
         </div>
       </div>
     </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Doughnut as _Doughnut, Bar as _Bar } from "vue-chartjs";
+import { Doughnut as _Doughnut, Bar } from "vue-chartjs";
 import {
   Chart as ChartJS,
   ArcElement,
@@ -24,7 +24,7 @@ ChartJS.register(
 // GitHub Repos - fetch dari API
 
 const api = useApi();
-const { user } = useAuth();
+const { user, fetchUser } = useAuth();
 
 interface Repo {
   id: string;
@@ -45,11 +45,19 @@ const tokenInput = ref("");
 const showGitHubModal = ref(false);
 const hasToken = ref(false);
 
+// Pre-fill username when modal opens
+watch(showGitHubModal, (isOpen) => {
+  if (isOpen && user.value?.githubUsername) {
+    usernameInput.value = user.value.githubUsername;
+  }
+});
+
 // Tab system
-const selectedTab = ref('repos');
+const selectedTab = ref("repos");
 const tabs = [
-  { id: 'repos', label: 'Repositories', icon: 'i-lucide-folder-git' },
-  { id: 'commits', label: 'Commits', icon: 'i-lucide-git-commit' }
+  { id: "repos", label: "Repositories", icon: "i-lucide-folder-git" },
+  { id: "commits", label: "Commits", icon: "i-lucide-git-commit" },
+  { id: "contributions", label: "Contributions", icon: "i-lucide-bar-chart-3" },
 ];
 
 // Commit Tracking
@@ -94,20 +102,55 @@ const syncingTodos = ref<Record<string, boolean>>({});
 const recentCommits = ref<RecentCommit[]>([]);
 const loadingRecentCommits = ref(false);
 
+// Contributions
+interface ContributionDay {
+  date: string;
+  count: number;
+  level: number;
+}
+
+interface ContributionStats {
+  totalContributions: number;
+  activeDays: number;
+  longestStreak: number;
+  currentStreak: number;
+  commits: number;
+  issues: number;
+  pullRequests: number;
+  reviews: number;
+}
+
+interface RepositoryBreakdown {
+  name: string;
+  commits: number;
+  additions: number;
+  deletions: number;
+  language: string | null;
+}
+
+interface ContributionData {
+  contributions: ContributionDay[];
+  stats: ContributionStats;
+  repositoryBreakdown: RepositoryBreakdown[];
+}
+
+const contributionData = ref<ContributionData | null>(null);
+const loadingContributions = ref(false);
+
 // Create Issue
 const showCreateIssueModal = ref(false);
 const creatingIssue = ref(false);
 const issueForm = ref({
-  repo: '',
-  title: '',
-  body: '',
-  labels: '',
+  repo: "",
+  title: "",
+  body: "",
+  labels: "",
 });
 
 const repoOptions = computed(() => {
-  return repos.value.map(r => ({
+  return repos.value.map((r) => ({
     label: r.name,
-    value: `${user.value?.githubUsername}/${r.name}`
+    value: `${user.value?.githubUsername}/${r.name}`,
   }));
 });
 
@@ -186,6 +229,9 @@ const setUsername = async () => {
       hasToken.value = true;
     }
 
+    // Refresh user data to get updated githubUsername
+    await fetchUser();
+
     showGitHubModal.value = false;
     usernameInput.value = "";
     tokenInput.value = "";
@@ -218,15 +264,15 @@ const checkTokenStatus = async () => {
 
 const loadGitHubTodos = async () => {
   try {
-    const week = await api.get<any>('/todos/current-week');
+    const week = await api.get<any>("/todos/current-week");
     githubTodos.value = week.todos.filter(
-      (todo: Todo) => todo.githubIssueNumber && todo.githubRepoName
+      (todo: Todo) => todo.githubIssueNumber && todo.githubRepoName,
     );
     for (const todo of githubTodos.value) {
       loadCommitsForTodo(todo.id);
     }
   } catch (error) {
-    console.error('Failed to load GitHub todos:', error);
+    console.error("Failed to load GitHub todos:", error);
   }
 };
 
@@ -248,7 +294,7 @@ const syncCommitsForTodo = async (todoId: string) => {
   try {
     const result = await api.post<{ synced: number; commits: GitHubCommit[] }>(
       `/todos/${todoId}/commits/sync`,
-      {}
+      {},
     );
     todoCommits.value[todoId] = result.commits;
   } catch (error) {
@@ -260,10 +306,10 @@ const syncCommitsForTodo = async (todoId: string) => {
 
 const openCreateIssueModal = () => {
   issueForm.value = {
-    repo: '',
-    title: '',
-    body: '',
-    labels: '',
+    repo: "",
+    title: "",
+    body: "",
+    labels: "",
   };
   showCreateIssueModal.value = true;
 };
@@ -275,10 +321,10 @@ const createIssue = async () => {
 
   creatingIssue.value = true;
   try {
-    const [owner, repo] = issueForm.value.repo.split('/');
+    const [owner, repo] = issueForm.value.repo.split("/");
     const labels = issueForm.value.labels
-      .split(',')
-      .map(l => l.trim())
+      .split(",")
+      .map((l) => l.trim())
       .filter(Boolean);
 
     const result = await api.post<{ number: number; url: string }>(
@@ -287,15 +333,15 @@ const createIssue = async () => {
         title: issueForm.value.title,
         body: issueForm.value.body,
         labels,
-      }
+      },
     );
 
     showCreateIssueModal.value = false;
-    
+
     // Show success with link
-    window.open(result.url, '_blank');
+    window.open(result.url, "_blank");
   } catch (error) {
-    console.error('Failed to create issue:', error);
+    console.error("Failed to create issue:", error);
   } finally {
     creatingIssue.value = false;
   }
@@ -304,19 +350,131 @@ const createIssue = async () => {
 const loadRecentCommits = async () => {
   loadingRecentCommits.value = true;
   try {
-    recentCommits.value = await api.get<RecentCommit[]>('/github/recent-commits?limit=15');
+    recentCommits.value = await api.get<RecentCommit[]>(
+      "/github/recent-commits?limit=15",
+    );
   } catch (error) {
-    console.error('Failed to load recent commits:', error);
+    console.error("Failed to load recent commits:", error);
   } finally {
     loadingRecentCommits.value = false;
   }
+};
+
+const loadContributions = async () => {
+  loadingContributions.value = true;
+  try {
+    contributionData.value = await api.get<ContributionData>(
+      "/github/contributions",
+    );
+  } catch (error) {
+    console.error("Failed to load contributions:", error);
+  } finally {
+    loadingContributions.value = false;
+  }
+};
+
+// Computed untuk contribution heatmap colors
+const getContributionColor = (level: number) => {
+  const colors = [
+    "bg-zinc-100 dark:bg-zinc-900",
+    "bg-green-200 dark:bg-green-900",
+    "bg-green-400 dark:bg-green-700",
+    "bg-green-500 dark:bg-green-600",
+    "bg-green-600 dark:bg-green-500",
+  ];
+  return colors[level] || colors[0];
+};
+
+// Group contributions by week untuk calendar view
+const contributionWeeks = computed(() => {
+  if (!contributionData.value) return [];
+
+  const contributions = contributionData.value.contributions;
+  const weeks: ContributionDay[][] = [];
+  let currentWeek: ContributionDay[] = [];
+
+  contributions.forEach((day) => {
+    const date = new Date(day.date);
+    const dayOfWeek = date.getDay();
+
+    if (dayOfWeek === 0 && currentWeek.length > 0) {
+      weeks.push(currentWeek);
+      currentWeek = [];
+    }
+
+    currentWeek.push(day);
+  });
+
+  if (currentWeek.length > 0) {
+    weeks.push(currentWeek);
+  }
+
+  return weeks;
+});
+
+// Chart data untuk repository breakdown
+const repoBarChartData = computed(() => {
+  if (!contributionData.value?.repositoryBreakdown) return null;
+
+  const repos = contributionData.value.repositoryBreakdown.slice(0, 10);
+
+  return {
+    labels: repos.map((r) => r.name),
+    datasets: [
+      {
+        label: "Commits",
+        data: repos.map((r) => r.commits),
+        backgroundColor: "rgba(34, 197, 94, 0.8)",
+        borderColor: "rgba(34, 197, 94, 1)",
+        borderWidth: 1,
+      },
+    ],
+  };
+});
+
+const repoBarChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: false,
+    },
+    tooltip: {
+      callbacks: {
+        afterLabel: (context: any) => {
+          const repo =
+            contributionData.value?.repositoryBreakdown[context.dataIndex];
+          if (repo) {
+            const labels = [];
+            if (repo.additions > 0 || repo.deletions > 0) {
+              labels.push(`Additions: +${repo.additions}`);
+              labels.push(`Deletions: -${repo.deletions}`);
+            }
+            if (repo.language) {
+              labels.push(`Language: ${repo.language}`);
+            }
+            return labels;
+          }
+          return [];
+        },
+      },
+    },
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+      ticks: {
+        precision: 0,
+      },
+    },
+  },
 };
 
 onMounted(async () => {
   try {
     await checkTokenStatus();
     repos.value = await api.get<Repo[]>("/github/repos");
-    if (selectedTab.value === 'commits') {
+    if (selectedTab.value === "commits") {
       await loadGitHubTodos();
       await loadRecentCommits();
     }
@@ -378,20 +536,24 @@ onMounted(async () => {
           <button
             v-for="tab in tabs"
             :key="tab.id"
-            @click="selectedTab = tab.id; if (tab.id === 'commits') loadGitHubTodos();"
             :class="[
               'flex items-center gap-2 px-4 py-3 text-sm font-medium transition border-b-2',
               selectedTab === tab.id
                 ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
+                : 'border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100',
             ]"
+            @click="
+              selectedTab = tab.id;
+              if (tab.id === 'commits') loadGitHubTodos();
+              if (tab.id === 'contributions') loadContributions();
+            "
           >
             <UIcon :name="tab.icon" class="size-4" />
             {{ tab.label }}
           </button>
         </div>
       </div>
-      
+
       <div class="p-6 space-y-6">
         <!-- GitHub Username -->
         <UCard>
@@ -412,7 +574,7 @@ onMounted(async () => {
             </UButton>
           </div>
         </UCard>
-        
+
         <!-- Repos Tab -->
         <div v-if="selectedTab === 'repos'">
           <!-- Loading -->
@@ -439,166 +601,168 @@ onMounted(async () => {
           <div v-else>
             <!-- Statistics Cards -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <!-- Language Statistics -->
-            <UCard>
-              <template #header>
-                <h3 class="font-semibold flex items-center gap-2">
-                  <UIcon name="i-lucide-code" class="size-5" />
-                  Top Languages
-                </h3>
-              </template>
-              <div class="space-y-3">
-                <div
-                  v-for="[lang, count] in languageStats"
-                  :key="lang"
-                  class="flex items-center gap-3"
-                >
-                  <span
-                    :class="[
-                      'size-3 rounded-full shrink-0',
-                      languageColors[lang] || 'bg-gray-400',
-                    ]"
-                  />
-                  <div class="flex-1">
-                    <div class="flex items-center justify-between mb-1">
-                      <span class="text-sm font-medium">{{ lang }}</span>
-                      <span class="text-xs text-muted">{{ count }} repos</span>
-                    </div>
-                    <div
-                      class="h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden"
-                    >
-                      <div
-                        :class="[languageColors[lang] || 'bg-gray-400']"
-                        :style="{
-                          width: `${(count / repos.length) * 100}%`,
-                        }"
-                        class="h-full transition-all"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div
-                  v-if="languageStats.length === 0"
-                  class="text-center py-4 text-muted text-sm"
-                >
-                  No language data available
-                </div>
-              </div>
-            </UCard>
-
-            <!-- GitHub Contributions -->
-            <UCard>
-              <template #header>
-                <h3 class="font-semibold flex items-center gap-2">
-                  <UIcon name="i-lucide-git-commit" class="size-5" />
-                  Contributions
-                </h3>
-              </template>
-              <div
-                v-if="user?.githubUsername"
-                class="overflow-hidden rounded-lg"
-              >
-                <img
-                  :src="`https://github-readme-activity-graph.vercel.app/graph?username=${user.githubUsername}&bg_color=1a1a1a&color=10b981&line=10b981&point=34d399&area=true&hide_border=true&custom_title=Contribution%20Activity`"
-                  :alt="`${user.githubUsername}'s GitHub contributions`"
-                  class="w-full h-auto"
-                  loading="lazy"
-                />
-              </div>
-              <div v-else class="text-center py-8 text-muted text-sm">
-                Set your GitHub username to view contributions
-              </div>
-            </UCard>
-          </div>
-
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold">
-              Public Repositories ({{ repos.length }})
-            </h3>
-            <div class="text-sm text-muted">
-              Page {{ page }} of {{ totalPages }}
-            </div>
-          </div>
-          <div class="grid gap-3">
-            <UCard v-for="repo in paginatedRepos" :key="repo.id">
-              <div class="flex items-start gap-4">
-                <div class="flex-1">
-                  <div class="flex items-center gap-2 mb-1">
-                    <a
-                      :href="repo.url"
-                      target="_blank"
-                      class="font-medium text-primary hover:underline"
-                    >
-                      {{ repo.name }}
-                    </a>
+              <!-- Language Statistics -->
+              <UCard>
+                <template #header>
+                  <h3 class="font-semibold flex items-center gap-2">
+                    <UIcon name="i-lucide-code" class="size-5" />
+                    Top Languages
+                  </h3>
+                </template>
+                <div class="space-y-3">
+                  <div
+                    v-for="[lang, count] in languageStats"
+                    :key="lang"
+                    class="flex items-center gap-3"
+                  >
                     <span
-                      v-if="repo.language"
                       :class="[
-                        'size-3 rounded-full',
-                        languageColors[repo.language] || 'bg-gray-400',
+                        'size-3 rounded-full shrink-0',
+                        languageColors[lang] || 'bg-gray-400',
                       ]"
                     />
-                    <span v-if="repo.language" class="text-xs text-muted">{{
-                      repo.language
-                    }}</span>
+                    <div class="flex-1">
+                      <div class="flex items-center justify-between mb-1">
+                        <span class="text-sm font-medium">{{ lang }}</span>
+                        <span class="text-xs text-muted"
+                          >{{ count }} repos</span
+                        >
+                      </div>
+                      <div
+                        class="h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden"
+                      >
+                        <div
+                          :class="[languageColors[lang] || 'bg-gray-400']"
+                          :style="{
+                            width: `${(count / repos.length) * 100}%`,
+                          }"
+                          class="h-full transition-all"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <p v-if="repo.description" class="text-sm text-muted mb-2">
-                    {{ repo.description }}
-                  </p>
-                  <div class="flex items-center gap-4 text-sm text-muted">
-                    <span class="flex items-center gap-1">
-                      <UIcon name="i-lucide-star" class="size-4" />
-                      {{ repo.stars }}
-                    </span>
-                    <span class="flex items-center gap-1">
-                      <UIcon name="i-lucide-git-fork" class="size-4" />
-                      {{ repo.forks }}
-                    </span>
-                    <span>Updated {{ formatDate(repo.updatedAt) }}</span>
+                  <div
+                    v-if="languageStats.length === 0"
+                    class="text-center py-4 text-muted text-sm"
+                  >
+                    No language data available
                   </div>
                 </div>
-              </div>
-            </UCard>
-          </div>
+              </UCard>
 
-          <!-- Pagination -->
-          <div
-            v-if="totalPages > 1"
-            class="flex items-center justify-center gap-2 mt-6"
-          >
-            <UButton
-              icon="i-lucide-chevron-left"
-              variant="outline"
-              size="sm"
-              :disabled="page === 1"
-              @click="page--"
+              <!-- GitHub Contributions -->
+              <UCard>
+                <template #header>
+                  <h3 class="font-semibold flex items-center gap-2">
+                    <UIcon name="i-lucide-git-commit" class="size-5" />
+                    Contributions
+                  </h3>
+                </template>
+                <div
+                  v-if="user?.githubUsername"
+                  class="overflow-hidden rounded-lg"
+                >
+                  <img
+                    :src="`https://github-readme-activity-graph.vercel.app/graph?username=${user.githubUsername}&bg_color=1a1a1a&color=10b981&line=10b981&point=34d399&area=true&hide_border=true&custom_title=Contribution%20Activity`"
+                    :alt="`${user.githubUsername}'s GitHub contributions`"
+                    class="w-full h-auto"
+                    loading="lazy"
+                  />
+                </div>
+                <div v-else class="text-center py-8 text-muted text-sm">
+                  Set your GitHub username to view contributions
+                </div>
+              </UCard>
+            </div>
+
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold">
+                Public Repositories ({{ repos.length }})
+              </h3>
+              <div class="text-sm text-muted">
+                Page {{ page }} of {{ totalPages }}
+              </div>
+            </div>
+            <div class="grid gap-3">
+              <UCard v-for="repo in paginatedRepos" :key="repo.id">
+                <div class="flex items-start gap-4">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                      <a
+                        :href="repo.url"
+                        target="_blank"
+                        class="font-medium text-primary hover:underline"
+                      >
+                        {{ repo.name }}
+                      </a>
+                      <span
+                        v-if="repo.language"
+                        :class="[
+                          'size-3 rounded-full',
+                          languageColors[repo.language] || 'bg-gray-400',
+                        ]"
+                      />
+                      <span v-if="repo.language" class="text-xs text-muted">{{
+                        repo.language
+                      }}</span>
+                    </div>
+                    <p v-if="repo.description" class="text-sm text-muted mb-2">
+                      {{ repo.description }}
+                    </p>
+                    <div class="flex items-center gap-4 text-sm text-muted">
+                      <span class="flex items-center gap-1">
+                        <UIcon name="i-lucide-star" class="size-4" />
+                        {{ repo.stars }}
+                      </span>
+                      <span class="flex items-center gap-1">
+                        <UIcon name="i-lucide-git-fork" class="size-4" />
+                        {{ repo.forks }}
+                      </span>
+                      <span>Updated {{ formatDate(repo.updatedAt) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </UCard>
+            </div>
+
+            <!-- Pagination -->
+            <div
+              v-if="totalPages > 1"
+              class="flex items-center justify-center gap-2 mt-6"
             >
-              Previous
-            </UButton>
-            <div class="flex items-center gap-1">
               <UButton
-                v-for="p in totalPages"
-                :key="p"
-                :variant="p === page ? 'solid' : 'ghost'"
+                icon="i-lucide-chevron-left"
+                variant="outline"
                 size="sm"
-                @click="page = p"
+                :disabled="page === 1"
+                @click="page--"
               >
-                {{ p }}
+                Previous
+              </UButton>
+              <div class="flex items-center gap-1">
+                <UButton
+                  v-for="p in totalPages"
+                  :key="p"
+                  :variant="p === page ? 'solid' : 'ghost'"
+                  size="sm"
+                  @click="page = p"
+                >
+                  {{ p }}
+                </UButton>
+              </div>
+              <UButton
+                trailing-icon="i-lucide-chevron-right"
+                variant="outline"
+                size="sm"
+                :disabled="page === totalPages"
+                @click="page++"
+              >
+                Next
               </UButton>
             </div>
-            <UButton
-              trailing-icon="i-lucide-chevron-right"
-              variant="outline"
-              size="sm"
-              :disabled="page === totalPages"
-              @click="page++"
-            >
-              Next
-            </UButton>
           </div>
         </div>
-        </div>
-        
+
         <!-- Commits Tab -->
         <div v-if="selectedTab === 'commits'">
           <!-- Recent Commits Section -->
@@ -607,16 +771,22 @@ onMounted(async () => {
               <UIcon name="i-lucide-git-commit" class="size-5" />
               Recent Commits
             </h3>
-            
+
             <div v-if="loadingRecentCommits" class="space-y-2">
               <USkeleton v-for="i in 5" :key="i" class="h-16" />
             </div>
-            
-            <div v-else-if="!recentCommits.length" class="text-center py-8 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-              <UIcon name="i-lucide-git-branch" class="size-12 mx-auto mb-2 text-zinc-300 dark:text-zinc-700" />
+
+            <div
+              v-else-if="!recentCommits.length"
+              class="text-center py-8 border border-zinc-200 dark:border-zinc-800 rounded-lg"
+            >
+              <UIcon
+                name="i-lucide-git-branch"
+                class="size-12 mx-auto mb-2 text-zinc-300 dark:text-zinc-700"
+              />
               <p class="text-sm text-muted">No recent commits found</p>
             </div>
-            
+
             <div v-else class="space-y-2">
               <a
                 v-for="commit in recentCommits"
@@ -633,42 +803,71 @@ onMounted(async () => {
                     class="size-8 rounded-full"
                   />
                   <div class="flex-1 min-w-0">
-                    <p class="font-medium text-sm line-clamp-1">{{ commit.message.split('\n')[0] }}</p>
-                    <div class="flex items-center gap-2 mt-1 text-xs text-muted">
+                    <p class="font-medium text-sm line-clamp-1">
+                      {{ commit.message.split("\n")[0] }}
+                    </p>
+                    <div
+                      class="flex items-center gap-2 mt-1 text-xs text-muted"
+                    >
                       <span>{{ commit.author }}</span>
                       <span>•</span>
-                      <a :href="commit.repoUrl" target="_blank" class="hover:text-primary-500">
+                      <a
+                        :href="commit.repoUrl"
+                        target="_blank"
+                        class="hover:text-primary-500"
+                      >
                         {{ commit.repo }}
                       </a>
                       <span>•</span>
-                      <span>{{ new Date(commit.date).toLocaleDateString() }}</span>
+                      <span>{{
+                        new Date(commit.date).toLocaleDateString()
+                      }}</span>
                     </div>
                   </div>
-                  <UIcon name="i-lucide-external-link" class="size-4 text-muted" />
+                  <UIcon
+                    name="i-lucide-external-link"
+                    class="size-4 text-muted"
+                  />
                 </div>
               </a>
             </div>
           </div>
 
           <!-- Divider -->
-          <div v-if="githubTodos.length" class="border-t border-zinc-200 dark:border-zinc-800 my-6"></div>
+          <div
+            v-if="githubTodos.length"
+            class="border-t border-zinc-200 dark:border-zinc-800 my-6"
+          ></div>
 
           <!-- Todo-based Commits -->
           <div v-if="!githubTodos.length" class="text-center py-12">
-            <UIcon name="i-lucide-github" class="size-16 mx-auto mb-4 text-zinc-300 dark:text-zinc-700" />
+            <UIcon
+              name="i-lucide-github"
+              class="size-16 mx-auto mb-4 text-zinc-300 dark:text-zinc-700"
+            />
             <p class="text-zinc-500 font-medium">No GitHub-linked tasks</p>
-            <p class="text-xs text-zinc-400 mt-1">Link your todos to GitHub issues to track commits</p>
+            <p class="text-xs text-zinc-400 mt-1">
+              Link your todos to GitHub issues to track commits
+            </p>
           </div>
 
           <div v-else class="space-y-4">
-            <div v-for="todo in githubTodos" :key="todo.id" class="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+            <div
+              v-for="todo in githubTodos"
+              :key="todo.id"
+              class="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden"
+            >
               <!-- Todo Header -->
-              <div class="bg-zinc-50 dark:bg-zinc-900/50 p-4 border-b border-zinc-200 dark:border-zinc-800">
+              <div
+                class="bg-zinc-50 dark:bg-zinc-900/50 p-4 border-b border-zinc-200 dark:border-zinc-800"
+              >
                 <div class="flex items-start justify-between">
                   <div class="flex-1">
-                    <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">{{ todo.title }}</h3>
+                    <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">
+                      {{ todo.title }}
+                    </h3>
                     <div class="flex items-center gap-3 mt-2">
-                      <a 
+                      <a
                         :href="todo.githubIssueUrl || '#'"
                         target="_blank"
                         class="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
@@ -677,7 +876,9 @@ onMounted(async () => {
                         {{ todo.githubRepoName }} #{{ todo.githubIssueNumber }}
                       </a>
                       <span class="text-xs text-zinc-400">•</span>
-                      <span class="text-xs text-zinc-500">{{ todo.status }}</span>
+                      <span class="text-xs text-zinc-500">{{
+                        todo.status
+                      }}</span>
                     </div>
                   </div>
                   <UButton
@@ -694,17 +895,31 @@ onMounted(async () => {
 
               <!-- Commits List -->
               <div class="p-4">
-                <div v-if="loadingCommits[todo.id]" class="flex items-center justify-center py-8">
+                <div
+                  v-if="loadingCommits[todo.id]"
+                  class="flex items-center justify-center py-8"
+                >
                   <div class="flex items-center gap-2 text-zinc-500 text-sm">
-                    <UIcon name="i-lucide-loader-2" class="size-4 animate-spin" />
+                    <UIcon
+                      name="i-lucide-loader-2"
+                      class="size-4 animate-spin"
+                    />
                     <span>Loading commits...</span>
                   </div>
                 </div>
 
-                <div v-else-if="!todoCommits[todo.id]?.length" class="text-center py-8 text-zinc-400">
-                  <UIcon name="i-lucide-git-commit" class="size-8 mx-auto mb-2 opacity-50" />
+                <div
+                  v-else-if="!todoCommits[todo.id]?.length"
+                  class="text-center py-8 text-zinc-400"
+                >
+                  <UIcon
+                    name="i-lucide-git-commit"
+                    class="size-8 mx-auto mb-2 opacity-50"
+                  />
                   <p class="text-sm">No commits yet</p>
-                  <p class="text-xs mt-1">Commits mentioning this issue will appear here</p>
+                  <p class="text-xs mt-1">
+                    Commits mentioning this issue will appear here
+                  </p>
                 </div>
 
                 <div v-else class="space-y-3">
@@ -720,21 +935,35 @@ onMounted(async () => {
                       :alt="commit.author"
                       class="size-10 rounded-full"
                     />
-                    <div v-else class="size-10 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
-                      <UIcon name="i-lucide-user" class="size-5 text-zinc-500" />
+                    <div
+                      v-else
+                      class="size-10 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center"
+                    >
+                      <UIcon
+                        name="i-lucide-user"
+                        class="size-5 text-zinc-500"
+                      />
                     </div>
 
                     <!-- Commit Info -->
                     <div class="flex-1 min-w-0">
-                      <p class="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-1">
-                        {{ commit.message.split('\n')[0] }}
+                      <p
+                        class="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-1"
+                      >
+                        {{ commit.message.split("\n")[0] }}
                       </p>
-                      <div class="flex items-center gap-3 text-xs text-zinc-500">
+                      <div
+                        class="flex items-center gap-3 text-xs text-zinc-500"
+                      >
                         <span class="font-medium">{{ commit.author }}</span>
-                       <span>•</span>
+                        <span>•</span>
                         <span>{{ formatDate(commit.committedAt) }}</span>
-                        <span class="text-green-600 dark:text-green-400">+{{ commit.additions }}</span>
-                        <span class="text-red-600 dark:text-red-400">-{{ commit.deletions }}</span>
+                        <span class="text-green-600 dark:text-green-400"
+                          >+{{ commit.additions }}</span
+                        >
+                        <span class="text-red-600 dark:text-red-400"
+                          >-{{ commit.deletions }}</span
+                        >
                       </div>
                     </div>
 
@@ -750,6 +979,458 @@ onMounted(async () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Contributions Tab -->
+        <div v-if="selectedTab === 'contributions'">
+          <!-- Loading -->
+          <div v-if="loadingContributions" class="space-y-4">
+            <div class="grid grid-cols-4 gap-3">
+              <USkeleton v-for="i in 4" :key="i" class="h-24" />
+            </div>
+            <USkeleton class="h-48" />
+          </div>
+
+          <!-- No GitHub Username -->
+          <div
+            v-else-if="!user?.githubUsername"
+            class="text-center py-12 border border-zinc-200 dark:border-zinc-800 rounded-lg"
+          >
+            <UIcon
+              name="i-lucide-bar-chart-3"
+              class="size-12 mx-auto mb-2 text-zinc-300 dark:text-zinc-700"
+            />
+            <p class="text-sm text-muted mb-4">
+              Set your GitHub username to view contributions
+            </p>
+            <UButton @click="showGitHubModal = true">Set Username</UButton>
+          </div>
+
+          <!-- Contributions Data -->
+          <div v-else-if="contributionData" class="space-y-6">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <!-- Total Contributions -->
+              <UCard>
+                <div class="text-center">
+                  <div
+                    class="size-12 mx-auto mb-3 rounded-full bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center"
+                  >
+                    <UIcon
+                      name="i-lucide-activity"
+                      class="size-6 text-primary-600 dark:text-primary-400"
+                    />
+                  </div>
+                  <p class="text-2xl font-bold">
+                    {{ contributionData.stats.totalContributions }}
+                  </p>
+                  <p class="text-xs text-muted mt-1">Total Contributions</p>
+                </div>
+              </UCard>
+
+              <!-- Commits -->
+              <UCard>
+                <div class="text-center">
+                  <div
+                    class="size-12 mx-auto mb-3 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center"
+                  >
+                    <UIcon
+                      name="i-lucide-git-commit"
+                      class="size-6 text-green-600 dark:text-green-400"
+                    />
+                  </div>
+                  <p class="text-2xl font-bold">
+                    {{ contributionData.stats.commits }}
+                  </p>
+                  <p class="text-xs text-muted mt-1">Commits</p>
+                </div>
+              </UCard>
+
+              <!-- Pull Requests -->
+              <UCard>
+                <div class="text-center">
+                  <div
+                    class="size-12 mx-auto mb-3 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center"
+                  >
+                    <UIcon
+                      name="i-lucide-git-pull-request"
+                      class="size-6 text-blue-600 dark:text-blue-400"
+                    />
+                  </div>
+                  <p class="text-2xl font-bold">
+                    {{ contributionData.stats.pullRequests }}
+                  </p>
+                  <p class="text-xs text-muted mt-1">Pull Requests</p>
+                </div>
+              </UCard>
+
+              <!-- Issues -->
+              <UCard>
+                <div class="text-center">
+                  <div
+                    class="size-12 mx-auto mb-3 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center"
+                  >
+                    <UIcon
+                      name="i-lucide-circle-dot"
+                      class="size-6 text-orange-600 dark:text-orange-400"
+                    />
+                  </div>
+                  <p class="text-2xl font-bold">
+                    {{ contributionData.stats.issues }}
+                  </p>
+                  <p class="text-xs text-muted mt-1">Issues Created</p>
+                </div>
+              </UCard>
+            </div>
+
+            <!-- Additional Stats -->
+            <div class="grid grid-cols-3 gap-4">
+              <UCard>
+                <div class="flex items-center gap-3">
+                  <div
+                    class="size-10 rounded-lg bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center"
+                  >
+                    <UIcon
+                      name="i-lucide-flame"
+                      class="size-5 text-purple-600 dark:text-purple-400"
+                    />
+                  </div>
+                  <div>
+                    <p class="text-lg font-bold">
+                      {{ contributionData.stats.currentStreak }}
+                    </p>
+                    <p class="text-xs text-muted">Current Streak</p>
+                  </div>
+                </div>
+              </UCard>
+
+              <UCard>
+                <div class="flex items-center gap-3">
+                  <div
+                    class="size-10 rounded-lg bg-yellow-100 dark:bg-yellow-900/20 flex items-center justify-center"
+                  >
+                    <UIcon
+                      name="i-lucide-trophy"
+                      class="size-5 text-yellow-600 dark:text-yellow-400"
+                    />
+                  </div>
+                  <div>
+                    <p class="text-lg font-bold">
+                      {{ contributionData.stats.longestStreak }}
+                    </p>
+                    <p class="text-xs text-muted">Longest Streak</p>
+                  </div>
+                </div>
+              </UCard>
+
+              <UCard>
+                <div class="flex items-center gap-3">
+                  <div
+                    class="size-10 rounded-lg bg-pink-100 dark:bg-pink-900/20 flex items-center justify-center"
+                  >
+                    <UIcon
+                      name="i-lucide-calendar-check"
+                      class="size-5 text-pink-600 dark:text-pink-400"
+                    />
+                  </div>
+                  <div>
+                    <p class="text-lg font-bold">
+                      {{ contributionData.stats.activeDays }}
+                    </p>
+                    <p class="text-xs text-muted">Active Days</p>
+                  </div>
+                </div>
+              </UCard>
+            </div>
+
+            <!-- Contribution Calendar Heatmap -->
+            <UCard>
+              <template #header>
+                <h3 class="font-semibold flex items-center gap-2">
+                  <UIcon name="i-lucide-calendar" class="size-5" />
+                  Contribution Activity
+                </h3>
+              </template>
+
+              <div class="overflow-x-auto">
+                <div class="min-w-max">
+                  <!-- Month Labels -->
+                  <div class="flex gap-1 mb-2 text-xs text-muted pl-7">
+                    <div
+                      v-for="(week, idx) in contributionWeeks"
+                      :key="idx"
+                      class="w-3"
+                    >
+                      <span
+                        v-if="idx % 4 === 0 && week[0]"
+                        class="inline-block"
+                      >
+                        {{
+                          new Date(week[0].date).toLocaleDateString("en-US", {
+                            month: "short",
+                          })
+                        }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Calendar Grid -->
+                  <div class="flex gap-1">
+                    <!-- Day Labels -->
+                    <div class="flex flex-col gap-1 text-xs text-muted pr-2">
+                      <div class="h-3">Mon</div>
+                      <div class="h-3"></div>
+                      <div class="h-3">Wed</div>
+                      <div class="h-3"></div>
+                      <div class="h-3">Fri</div>
+                      <div class="h-3"></div>
+                      <div class="h-3">Sun</div>
+                    </div>
+
+                    <!-- Heatmap -->
+                    <div class="flex gap-1">
+                      <div
+                        v-for="(week, weekIdx) in contributionWeeks"
+                        :key="weekIdx"
+                        class="flex flex-col gap-1"
+                      >
+                        <div
+                          v-for="(day, dayIdx) in week"
+                          :key="dayIdx"
+                          :class="[
+                            'w-3 h-3 rounded-sm cursor-pointer transition-all hover:ring-2 hover:ring-primary-500',
+                            getContributionColor(day.level),
+                          ]"
+                          :title="`${day.count} contributions on ${new Date(day.date).toLocaleDateString()}`"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Legend -->
+                  <div class="flex items-center gap-2 mt-4 text-xs text-muted">
+                    <span>Less</span>
+                    <div
+                      v-for="level in 5"
+                      :key="level"
+                      :class="[
+                        'w-3 h-3 rounded-sm',
+                        getContributionColor(level - 1),
+                      ]"
+                    ></div>
+                    <span>More</span>
+                  </div>
+                </div>
+              </div>
+            </UCard>
+
+            <!-- Contribution Breakdown -->
+            <UCard>
+              <template #header>
+                <h3 class="font-semibold flex items-center gap-2">
+                  <UIcon name="i-lucide-pie-chart" class="size-5" />
+                  Contribution Types
+                </h3>
+              </template>
+
+              <div class="space-y-3">
+                <!-- Commits Bar -->
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm flex items-center gap-2">
+                      <UIcon
+                        name="i-lucide-git-commit"
+                        class="size-4 text-green-600 dark:text-green-400"
+                      />
+                      Commits
+                    </span>
+                    <span class="text-sm font-medium">{{
+                      contributionData.stats.commits
+                    }}</span>
+                  </div>
+                  <div class="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full">
+                    <div
+                      class="h-full bg-green-500 rounded-full transition-all"
+                      :style="{
+                        width: `${(contributionData.stats.commits / contributionData.stats.totalContributions) * 100}%`,
+                      }"
+                    ></div>
+                  </div>
+                </div>
+
+                <!-- Pull Requests Bar -->
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm flex items-center gap-2">
+                      <UIcon
+                        name="i-lucide-git-pull-request"
+                        class="size-4 text-blue-600 dark:text-blue-400"
+                      />
+                      Pull Requests
+                    </span>
+                    <span class="text-sm font-medium">{{
+                      contributionData.stats.pullRequests
+                    }}</span>
+                  </div>
+                  <div class="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full">
+                    <div
+                      class="h-full bg-blue-500 rounded-full transition-all"
+                      :style="{
+                        width: `${(contributionData.stats.pullRequests / contributionData.stats.totalContributions) * 100}%`,
+                      }"
+                    ></div>
+                  </div>
+                </div>
+
+                <!-- Issues Bar -->
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm flex items-center gap-2">
+                      <UIcon
+                        name="i-lucide-circle-dot"
+                        class="size-4 text-orange-600 dark:text-orange-400"
+                      />
+                      Issues Created
+                    </span>
+                    <span class="text-sm font-medium">{{
+                      contributionData.stats.issues
+                    }}</span>
+                  </div>
+                  <div class="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full">
+                    <div
+                      class="h-full bg-orange-500 rounded-full transition-all"
+                      :style="{
+                        width: `${(contributionData.stats.issues / contributionData.stats.totalContributions) * 100}%`,
+                      }"
+                    ></div>
+                  </div>
+                </div>
+
+                <!-- Reviews Bar -->
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm flex items-center gap-2">
+                      <UIcon
+                        name="i-lucide-message-square"
+                        class="size-4 text-purple-600 dark:text-purple-400"
+                      />
+                      PR Reviews
+                    </span>
+                    <span class="text-sm font-medium">{{
+                      contributionData.stats.reviews
+                    }}</span>
+                  </div>
+                  <div class="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full">
+                    <div
+                      class="h-full bg-purple-500 rounded-full transition-all"
+                      :style="{
+                        width: `${(contributionData.stats.reviews / contributionData.stats.totalContributions) * 100}%`,
+                      }"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </UCard>
+
+            <!-- Repository Breakdown -->
+            <UCard v-if="contributionData.repositoryBreakdown?.length">
+              <template #header>
+                <h3 class="font-semibold flex items-center gap-2">
+                  <UIcon name="i-lucide-folder-git" class="size-5" />
+                  Top Repositories by Commits
+                </h3>
+              </template>
+
+              <div class="space-y-6">
+                <!-- Bar Chart -->
+                <div v-if="repoBarChartData" class="h-64">
+                  <Bar
+                    :data="repoBarChartData"
+                    :options="repoBarChartOptions"
+                  />
+                </div>
+
+                <!-- Repository List -->
+                <div class="space-y-2">
+                  <div
+                    v-for="repo in contributionData.repositoryBreakdown"
+                    :key="repo.name"
+                    class="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900/30 rounded-lg border border-zinc-200 dark:border-zinc-800"
+                  >
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                      <div
+                        class="size-10 rounded-lg bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center shrink-0"
+                      >
+                        <UIcon
+                          name="i-lucide-folder-git"
+                          class="size-5 text-primary-600 dark:text-primary-400"
+                        />
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <p
+                          class="font-medium text-sm truncate text-zinc-900 dark:text-zinc-100"
+                        >
+                          {{ repo.name }}
+                        </p>
+                        <div class="flex items-center gap-2 text-xs text-muted">
+                          <span
+                            v-if="repo.language"
+                            class="flex items-center gap-1"
+                          >
+                            <span
+                              :class="[
+                                'size-2 rounded-full',
+                                languageColors[repo.language] || 'bg-gray-400',
+                              ]"
+                            ></span>
+                            {{ repo.language }}
+                          </span>
+                          <template
+                            v-if="repo.additions > 0 || repo.deletions > 0"
+                          >
+                            <span v-if="repo.language">•</span>
+                            <span class="text-green-600 dark:text-green-400"
+                              >+{{ repo.additions }}</span
+                            >
+                            <span class="text-red-600 dark:text-red-400"
+                              >-{{ repo.deletions }}</span
+                            >
+                          </template>
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      class="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full shrink-0"
+                    >
+                      <UIcon
+                        name="i-lucide-git-commit"
+                        class="size-3 text-green-600 dark:text-green-400"
+                      />
+                      <span
+                        class="text-sm font-semibold text-zinc-900 dark:text-zinc-100"
+                        >{{ repo.commits }}</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </UCard>
+          </div>
+
+          <!-- No Data -->
+          <div
+            v-else
+            class="text-center py-12 border border-zinc-200 dark:border-zinc-800 rounded-lg"
+          >
+            <UIcon
+              name="i-lucide-bar-chart-3"
+              class="size-12 mx-auto mb-2 text-zinc-300 dark:text-zinc-700"
+            />
+            <p class="text-sm text-muted mb-4">
+              No contribution data available
+            </p>
+            <UButton @click="loadContributions">Retry</UButton>
           </div>
         </div>
       </div>
@@ -782,7 +1463,11 @@ onMounted(async () => {
               class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="">Select repository</option>
-              <option v-for="opt in repoOptions" :key="opt.value" :value="opt.value">
+              <option
+                v-for="opt in repoOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
                 {{ opt.label }}
               </option>
             </select>
@@ -802,9 +1487,7 @@ onMounted(async () => {
 
           <!-- Description -->
           <div>
-            <label class="block text-sm font-medium mb-2">
-              Description
-            </label>
+            <label class="block text-sm font-medium mb-2"> Description </label>
             <textarea
               v-model="issueForm.body"
               rows="4"
@@ -816,15 +1499,15 @@ onMounted(async () => {
 
           <!-- Labels -->
           <div>
-            <label class="block text-sm font-medium mb-2">
-              Labels
-            </label>
+            <label class="block text-sm font-medium mb-2"> Labels </label>
             <UInput
               v-model="issueForm.labels"
               placeholder="bug, enhancement (comma-separated)"
               class="w-full"
             />
-            <p class="text-xs text-muted mt-1">Separate multiple labels with commas</p>
+            <p class="text-xs text-muted mt-1">
+              Separate multiple labels with commas
+            </p>
           </div>
         </div>
 
@@ -862,7 +1545,6 @@ onMounted(async () => {
             <UInput
               v-model="usernameInput"
               placeholder="Enter your GitHub username"
-              :value="user?.githubUsername"
               class="w-full"
             />
           </div>

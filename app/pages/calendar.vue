@@ -170,6 +170,7 @@ const handleDateClick = (date: Date) => {
 };
 
 const handleEventClick = (event: CalendarEvent) => {
+  console.log("Event clicked:", event);
   selectedEvent.value = event;
   // Convert ISO dates to YYYY-MM-DD format for date inputs
   const startDateFormatted = event.startDate
@@ -178,15 +179,17 @@ const handleEventClick = (event: CalendarEvent) => {
   const endDateFormatted = event.endDate ? event.endDate.substring(0, 10) : "";
 
   eventForm.value = {
-    title: event.title,
-    description: event.description,
+    title: event.title || "",
+    description: event.description || "",
     startDate: startDateFormatted,
     endDate: endDateFormatted,
-    allDay: event.allDay,
-    color: event.color,
-    eventType: event.eventType,
+    allDay: event.allDay ?? false,
+    color: event.color || "#10b981",
+    eventType: event.eventType || "custom",
   };
+  console.log("Setting showEventModal to true");
   showEventModal.value = true;
+  console.log("showEventModal.value:", showEventModal.value);
 };
 
 const saveEvent = async () => {
@@ -384,6 +387,9 @@ const clearFilters = () => {
 };
 
 onMounted(async () => {
+  // Auto-sync projects and todos to calendar
+  await Promise.all([syncProjects(), syncTodos()]);
+  // Then load all events
   await loadEvents();
 });
 

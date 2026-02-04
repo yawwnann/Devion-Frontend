@@ -16,9 +16,9 @@ const links = [
   ],
   [
     {
-      label: "Pages",
+      label: "Documentation",
       icon: "i-lucide-file-text",
-      to: "/pages",
+      to: "/documentation",
       onSelect: () => {
         open.value = false;
       },
@@ -53,6 +53,22 @@ const links = [
       label: "GitHub",
       icon: "i-lucide-github",
       to: "/github",
+      onSelect: () => {
+        open.value = false;
+      },
+    },
+    {
+      label: "Contributions",
+      icon: "i-lucide-flame",
+      to: "/contributions",
+      onSelect: () => {
+        open.value = false;
+      },
+    },
+    {
+      label: "Actions",
+      icon: "i-lucide-play-circle",
+      to: "/actions",
       onSelect: () => {
         open.value = false;
       },

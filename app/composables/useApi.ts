@@ -11,7 +11,8 @@ export const useApi = () => {
 
   const fetchApi = async <T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    isRetry = false,
   ): Promise<T> => {
     // Mock mode
     if (useMock) {
@@ -33,7 +34,7 @@ export const useApi = () => {
           return mockApi.register(
             body.name,
             body.email,
-            body.password
+            body.password,
           ) as Promise<T>;
         }
         if (parts[1] === "me") {
@@ -98,7 +99,7 @@ export const useApi = () => {
           return mockApi.getStats() as Promise<T>;
         }
         const pageId = new URL(`http://dummy${endpoint}`).searchParams.get(
-          "pageId"
+          "pageId",
         );
         if (method === "GET") {
           return mockApi.getAnalytics(pageId!) as Promise<T>;
@@ -108,7 +109,7 @@ export const useApi = () => {
           return mockApi.trackEvent(
             pageId!,
             body.event,
-            body.metadata
+            body.metadata,
           ) as Promise<T>;
         }
       }
@@ -145,18 +146,28 @@ export const useApi = () => {
       ...options.headers,
     };
 
-  
-
     const res = await fetch(`${API_URL}${endpoint}`, {
       ...options,
       headers,
     });
 
     if (!res.ok) {
-      if (res.status === 401) {
-        const token = useCookie("auth_token");
-        token.value = null;
-        navigateTo("/login");
+      if (res.status === 401 && !isRetry) {
+        // Try to refresh token
+        try {
+          const auth = useAuth();
+          await auth.refreshAccessToken();
+          // Retry the request with new token
+          return fetchApi<T>(endpoint, options, true);
+        } catch (refreshError) {
+          // Refresh failed, redirect to login
+          const token = useCookie("auth_token");
+          const refreshToken = useCookie("refresh_token");
+          token.value = null;
+          refreshToken.value = null;
+          navigateTo("/login");
+          throw new Error("Authentication failed");
+        }
       }
       throw new Error(`API Error: ${res.status}`);
     }

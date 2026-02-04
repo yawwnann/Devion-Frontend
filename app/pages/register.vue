@@ -2,7 +2,7 @@
 definePageMeta({ layout: false });
 
 const api = useApi();
-const { setToken, fetchUser } = useAuth();
+const { setTokens, fetchUser } = useAuth();
 
 const apiUrl = "http://localhost:3000/api";
 const name = ref("");
@@ -46,13 +46,16 @@ const handleRegister = async () => {
   loading.value = true;
 
   try {
-    const response = await api.post<{ accessToken: string }>("/auth/register", {
+    const response = await api.post<{
+      accessToken: string;
+      refreshToken: string;
+    }>("/auth/register", {
       name: name.value,
       email: email.value,
       password: password.value,
     });
 
-    setToken(response.accessToken);
+    setTokens(response.accessToken, response.refreshToken);
     await nextTick(); // Wait for cookie to be set
     await fetchUser();
     navigateTo("/dashboard");

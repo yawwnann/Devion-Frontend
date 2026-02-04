@@ -3,14 +3,16 @@
 definePageMeta({ layout: false });
 
 const route = useRoute();
-const { setToken, fetchUser } = useAuth();
+const { setTokens, fetchUser } = useAuth();
 const error = ref("");
 
 onMounted(async () => {
   const token = route.query.token as string;
-  if (token) {
+  const refreshToken = route.query.refreshToken as string;
+
+  if (token && refreshToken) {
     try {
-      setToken(token);
+      setTokens(token, refreshToken);
       await new Promise((resolve) => setTimeout(resolve, 100)); // Wait for cookie to be set
       const userData = await fetchUser();
 

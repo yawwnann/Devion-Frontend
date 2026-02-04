@@ -47,7 +47,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  crosshairPlugin
+  crosshairPlugin,
 );
 
 /* =====================
@@ -118,7 +118,7 @@ onMounted(async () => {
 
   try {
     const [pagesData, reposData, projectsData] = await Promise.all([
-      api.get<Page[]>("/pages"),
+      api.get<Page[]>("/documentation"),
       api.get<GithubRepo[]>("/github/repos"),
       api.get<Project[]>("/projects"),
     ]);
@@ -159,7 +159,7 @@ const projectStats = computed(() => {
   const total = projects.value.length;
   const todo = projects.value.filter((p) => p.status === "TODO").length;
   const inProgress = projects.value.filter(
-    (p) => p.status === "IN_PROGRESS"
+    (p) => p.status === "IN_PROGRESS",
   ).length;
   const done = projects.value.filter((p) => p.status === "DONE").length;
   return { total, todo, inProgress, done };
@@ -200,7 +200,7 @@ const projectsByCategory = computed(() => {
     } else {
       categoryMap.set(
         "Uncategorized",
-        (categoryMap.get("Uncategorized") || 0) + 1
+        (categoryMap.get("Uncategorized") || 0) + 1,
       );
     }
   });
@@ -230,7 +230,7 @@ const monthlyChartData = computed(() => ({
           0,
           chartArea.top,
           0,
-          chartArea.bottom
+          chartArea.bottom,
         );
         gradient.addColorStop(0, "rgba(16, 185, 129, 0.5)");
         gradient.addColorStop(1, "rgba(16, 185, 129, 0.0)");
@@ -490,7 +490,7 @@ const barChartOptions = {
               </div>
               <div class="flex gap-2 mt-4">
                 <UButton
-                  to="/pages"
+                  to="/documentation"
                   icon="i-lucide-plus"
                   size="sm"
                   color="primary"
@@ -604,7 +604,7 @@ const barChartOptions = {
               <div class="flex items-center justify-between">
                 <h3 class="text-lg font-semibold">Recent Pages</h3>
                 <UButton
-                  to="/pages"
+                  to="/documentation"
                   variant="ghost"
                   size="xs"
                   trailing-icon="i-lucide-arrow-right"
@@ -626,7 +626,7 @@ const barChartOptions = {
               <NuxtLink
                 v-for="(page, index) in pages.slice(0, 5)"
                 :key="page.id"
-                :to="`/pages/${page.id}`"
+                :to="`/documentation/${page.id}`"
                 class="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-300"
                 :class="
                   showLists
@@ -709,8 +709,8 @@ const barChartOptions = {
                     project.status === 'DONE'
                       ? 'success'
                       : project.status === 'IN_PROGRESS'
-                      ? 'warning'
-                      : 'neutral'
+                        ? 'warning'
+                        : 'neutral'
                   "
                   variant="subtle"
                   size="xs"
@@ -719,8 +719,8 @@ const barChartOptions = {
                     project.status === "DONE"
                       ? "Done"
                       : project.status === "IN_PROGRESS"
-                      ? "In Progress"
-                      : "To Do"
+                        ? "In Progress"
+                        : "To Do"
                   }}
                 </UBadge>
               </div>

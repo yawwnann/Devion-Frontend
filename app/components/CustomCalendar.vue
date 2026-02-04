@@ -51,6 +51,39 @@ const currentMonthName = computed(
     `${monthNames[currentMonth.value.getMonth()]} ${currentMonth.value.getFullYear()}`,
 );
 
+// Event type icons and colors
+const eventTypeConfig: Record<
+  string,
+  { icon: string; bgClass: string; textClass: string }
+> = {
+  project: {
+    icon: "i-lucide-folder",
+    bgClass: "bg-blue-500/10 dark:bg-blue-500/20",
+    textClass: "text-blue-700 dark:text-blue-400",
+  },
+  todo: {
+    icon: "i-lucide-check-square",
+    bgClass: "bg-orange-500/10 dark:bg-orange-500/20",
+    textClass: "text-orange-700 dark:text-orange-400",
+  },
+  github: {
+    icon: "i-lucide-github",
+    bgClass: "bg-purple-500/10 dark:bg-purple-500/20",
+    textClass: "text-purple-700 dark:text-purple-400",
+  },
+  custom: {
+    icon: "i-lucide-calendar",
+    bgClass: "bg-emerald-500/10 dark:bg-emerald-500/20",
+    textClass: "text-emerald-700 dark:text-emerald-400",
+  },
+};
+
+function getEventConfig(eventType: string) {
+  return (
+    eventTypeConfig[eventType] || eventTypeConfig.custom
+  );
+}
+
 const calendarDays = computed(() => {
   const year = currentMonth.value.getFullYear();
   const month = currentMonth.value.getMonth();
@@ -156,6 +189,12 @@ function handleDateClick(date: Date) {
 function handleEventClick(event: CalendarEvent) {
   emit("eventClick", event);
 }
+
+// Truncate long titles
+function truncateTitle(title: string, maxLength: number = 20): string {
+  if (title.length <= maxLength) return title;
+  return title.substring(0, maxLength) + "...";
+}
 </script>
 
 <template>
@@ -205,7 +244,7 @@ function handleEventClick(event: CalendarEvent) {
         <div
           v-for="(dayInfo, index) in calendarDays"
           :key="index"
-          class="min-h-[120px] bg-white dark:bg-zinc-900 p-2 cursor-pointer transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          class="min-h-[140px] bg-white dark:bg-zinc-900 p-2 cursor-pointer transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50 relative"
           :class="{
             'bg-emerald-50/50 dark:bg-emerald-950/20': dayInfo.isToday,
             'opacity-40': !dayInfo.isCurrentMonth,
@@ -215,34 +254,81 @@ function handleEventClick(event: CalendarEvent) {
           <!-- Day Number -->
           <div class="flex items-center justify-between mb-2">
             <span
-              class="text-sm font-medium"
+              class="text-sm font-semibold"
               :class="{
-                'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-full w-7 h-7 flex items-center justify-center':
+                'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-md':
                   dayInfo.isToday,
-                'text-zinc-900 dark:text-zinc-100': dayInfo.isCurrentMonth && !dayInfo.isToday,
+                'text-zinc-900 dark:text-zinc-100':
+                  dayInfo.isCurrentMonth && !dayInfo.isToday,
                 'text-zinc-400 dark:text-zinc-600': !dayInfo.isCurrentMonth,
               }"
             >
               {{ dayInfo.day }}
             </span>
+
+            <!-- Event Count Badge -->
+            <span
+              v-if="dayInfo.events.length > 0"
+              class="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-medium"
+            >
+              {{ dayInfo.events.length }}
+            </span>
           </div>
 
-          <!-- Events -->
-          <div class="space-y-1">
+          <!-- Events - Compact Design -->
+          <div class="space-y-1.5">
             <div
               v-for="event in dayInfo.events.slice(0, 3)"
               :key="event.id"
-              class="text-xs px-2 py-1 rounded truncate cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5"
-              :style="{ backgroundColor: event.color, color: 'white' }"
-              @click.stop="handleEventClick(event)"
+              class="group relative"
             >
-              {{ event.title }}
+              <div
+                class="flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-pointer transition-all hover:shadow-sm border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700"
+                :class="getEventConfig(event.eventType).bgClass"
+                @click.stop="handleEventClick(event)"
+              >
+                <!-- Event Type Icon -->
+                <UIcon
+                  :name="getEventConfig(event.eventType).icon"
+                  class="size-3 flex-shrink-0"
+                  :class="getEventConfig(event.eventType).textClass"
+                />
+
+                <!-- Event Title -->
+                <span
+                  class="text-xs font-medium truncate flex-1"
+                  :class="getEventConfig(event.eventType).textClass"
+                  :title="event.title"
+                >
+                  {{ truncateTitle(event.title, 18) }}
+                </span>
+              </div>
+
+              <!-- Tooltip on Hover -->
+              <div
+                class="absolute left-0 top-full mt-1 z-50 hidden group-hover:block pointer-events-none"
+              >
+                <div
+                  class="bg-zinc-900 dark:bg-zinc-800 text-white text-xs rounded-lg px-3 py-2 shadow-xl max-w-xs whitespace-normal"
+                >
+                  <div class="font-semibold mb-1">{{ event.title }}</div>
+                  <div v-if="event.description" class="text-zinc-300 text-xs">
+                    {{ event.description }}
+                  </div>
+                  <div class="text-zinc-400 text-xs mt-1 capitalize">
+                    {{ event.eventType }}
+                  </div>
+                </div>
+              </div>
             </div>
+
+            <!-- More Events Indicator -->
             <div
               v-if="dayInfo.events.length > 3"
-              class="text-xs text-zinc-500 dark:text-zinc-400 px-2"
+              class="text-xs text-zinc-500 dark:text-zinc-400 px-2 py-1 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors cursor-pointer font-medium"
+              @click.stop="handleDateClick(dayInfo.date)"
             >
-              +{{ dayInfo.events.length - 3 }} more
+              +{{ dayInfo.events.length - 3 }} more events
             </div>
           </div>
         </div>
