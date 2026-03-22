@@ -78,10 +78,12 @@ const eventTypeConfig: Record<
   },
 };
 
-function getEventConfig(eventType: string) {
-  return (
-    eventTypeConfig[eventType] || eventTypeConfig.custom
-  );
+function getEventConfig(eventType: string): {
+  icon: string;
+  bgClass: string;
+  textClass: string;
+} {
+  return eventTypeConfig[eventType] ?? eventTypeConfig.custom!;
 }
 
 const calendarDays = computed(() => {

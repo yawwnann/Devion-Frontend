@@ -3,10 +3,24 @@ const API_URL = "http://localhost:3000/api";
 export const useApi = () => {
   const config = useRuntimeConfig();
   const useMock = config.public.useMock === "true";
+  const token = useCookie("auth_token");
+  const refreshToken = useCookie("refresh_token");
 
   const getToken = () => {
     const token = useCookie("auth_token");
     return token.value;
+  };
+
+  const updateTokens = (
+    newAccessToken?: string | null,
+    newRefreshToken?: string | null,
+  ) => {
+    if (newAccessToken) {
+      token.value = newAccessToken;
+    }
+    if (newRefreshToken) {
+      refreshToken.value = newRefreshToken;
+    }
   };
 
   const fetchApi = async <T>(
@@ -155,24 +169,68 @@ export const useApi = () => {
       if (res.status === 401 && !isRetry) {
         // Try to refresh token
         try {
-          const auth = useAuth();
-          await auth.refreshAccessToken();
-          // Retry the request with new token
-          return fetchApi<T>(endpoint, options, true);
+          if (!refreshToken.value) throw new Error("No refresh token");
+
+          const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken: refreshToken.value }),
+          });
+
+          if (!refreshRes.ok) throw new Error("Refresh failed");
+
+          const refreshData = await refreshRes.json();
+          updateTokens(refreshData.accessToken, refreshData.refreshToken);
+
+          // Retry the request with new token explicitly set in headers
+          const retryOptions = {
+            ...options,
+            headers: {
+              ...options.headers,
+              Authorization: `Bearer ${refreshData.accessToken}`,
+            },
+          };
+          return fetchApi<T>(endpoint, retryOptions, true);
         } catch (refreshError) {
-          // Refresh failed, redirect to login
-          const token = useCookie("auth_token");
-          const refreshToken = useCookie("refresh_token");
+          // Refresh failed, clear tokens and redirect to login
           token.value = null;
           refreshToken.value = null;
           navigateTo("/login");
           throw new Error("Authentication failed");
         }
       }
-      throw new Error(`API Error: ${res.status}`);
+      let errorMessage = `API Error: ${res.status}`;
+      try {
+        const errorData = await res.json();
+        if (errorData.message) {
+          errorMessage = Array.isArray(errorData.message)
+            ? errorData.message.join(", ")
+            : errorData.message;
+        }
+      } catch (e) {
+        // Ignore json parse error
+      }
+      throw new Error(errorMessage);
     }
 
-    return res.json();
+    // Extract tokens from response headers (auto-refresh from backend)
+    const newAccessToken = res.headers.get("X-Access-Token");
+    const newRefreshToken = res.headers.get("X-Refresh-Token");
+
+    if (newAccessToken || newRefreshToken) {
+      updateTokens(newAccessToken, newRefreshToken);
+    }
+
+    const data = await res.json();
+
+    // Also extract tokens from response body if present (_tokens property)
+    if (data?._tokens) {
+      updateTokens(data._tokens.accessToken, data._tokens.refreshToken);
+      // Remove _tokens from response to avoid leaking to UI
+      delete data._tokens;
+    }
+
+    return data;
   };
 
   return {
@@ -183,7 +241,11 @@ export const useApi = () => {
       fetchApi<T>(endpoint, { method: "PATCH", body: JSON.stringify(body) }),
     delete: <T>(endpoint: string) =>
       fetchApi<T>(endpoint, { method: "DELETE" }),
-    upload: async <T>(endpoint: string, formData: FormData): Promise<T> => {
+    upload: async <T>(
+      endpoint: string,
+      formData: FormData,
+      isRetry = false,
+    ): Promise<T> => {
       const tokenValue = getToken();
       const res = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
@@ -192,14 +254,79 @@ export const useApi = () => {
         },
         body: formData,
       });
+
       if (!res.ok) {
-        if (res.status === 401) {
-          const token = useCookie("auth_token");
-          token.value = null;
-          navigateTo("/login");
+        if (res.status === 401 && !isRetry) {
+          try {
+            if (!refreshToken.value) throw new Error("No refresh token");
+
+            const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ refreshToken: refreshToken.value }),
+            });
+
+            if (!refreshRes.ok) throw new Error("Refresh failed");
+
+            const refreshData = await refreshRes.json();
+            updateTokens(refreshData.accessToken, refreshData.refreshToken);
+
+            // Retry with new token explicitly
+            const newHeaders = new Headers();
+            if (formData) {
+              newHeaders.append(
+                "Authorization",
+                `Bearer ${refreshData.accessToken}`,
+              );
+            }
+
+            const retryRes = await fetch(`${API_URL}${endpoint}`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${refreshData.accessToken}`,
+              },
+              body: formData,
+            });
+
+            if (!retryRes.ok) {
+              throw new Error(`API Error on retry: ${retryRes.status}`);
+            }
+
+            const newAccessToken = retryRes.headers.get("X-Access-Token");
+            const newRefreshToken = retryRes.headers.get("X-Refresh-Token");
+            if (newAccessToken || newRefreshToken) {
+              updateTokens(newAccessToken, newRefreshToken);
+            }
+            return retryRes.json();
+          } catch (refreshError) {
+            token.value = null;
+            refreshToken.value = null;
+            navigateTo("/login");
+            throw new Error("Authentication failed");
+          }
         }
-        throw new Error(`API Error: ${res.status}`);
+        let errorMessage = `API Error: ${res.status}`;
+        try {
+          const errorData = await res.json();
+          if (errorData.message) {
+            errorMessage = Array.isArray(errorData.message)
+              ? errorData.message.join(", ")
+              : errorData.message;
+          }
+        } catch (e) {
+          // Ignore JSON parse error
+        }
+        throw new Error(errorMessage);
       }
+
+      // Extract tokens from response headers
+      const newAccessToken = res.headers.get("X-Access-Token");
+      const newRefreshToken = res.headers.get("X-Refresh-Token");
+
+      if (newAccessToken || newRefreshToken) {
+        updateTokens(newAccessToken, newRefreshToken);
+      }
+
       return res.json();
     },
   };

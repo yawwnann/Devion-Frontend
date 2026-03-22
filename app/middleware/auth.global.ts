@@ -1,5 +1,6 @@
 export default defineNuxtRouteMiddleware(async (to) => {
-  const { token, user, fetchUser } = useAuth();
+  const { token, refreshToken, user, fetchUser, refreshAccessToken } =
+    useAuth();
 
   // Public routes (landing page and auth pages)
   const publicRoutes = ["/", "/login", "/register", "/auth/callback"];
@@ -9,7 +10,15 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Check if authenticated
   if (!token.value) {
-    return navigateTo("/login");
+    if (refreshToken.value) {
+      try {
+        await refreshAccessToken();
+      } catch (e) {
+        return navigateTo("/login");
+      }
+    } else {
+      return navigateTo("/login");
+    }
   }
 
   // Fetch user if not loaded

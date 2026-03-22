@@ -179,8 +179,8 @@ onMounted(async () => {
       </UDashboardNavbar>
     </template>
 
-    <template #default>
-      <div class="p-6 space-y-6">
+    <template #body>
+      <div class="p-6 space-y-6 overflow-y-auto h-full">
         <!-- Not configured -->
         <div
           v-if="!user?.githubUsername"
@@ -315,7 +315,7 @@ onMounted(async () => {
               >
                 <!-- Status Icon -->
                 <div
-                  class="flex-shrink-0 p-2.5 rounded-full"
+                  class="shrink-0 p-2.5 rounded-full"
                   :class="{
                     'bg-green-100 dark:bg-green-900/30':
                       run.conclusion === 'success',
@@ -390,7 +390,7 @@ onMounted(async () => {
                 </div>
 
                 <!-- Actor -->
-                <div class="flex-shrink-0 flex items-center gap-2">
+                <div class="shrink-0 flex items-center gap-2">
                   <img
                     v-if="run.actor?.avatar"
                     :src="run.actor.avatar"

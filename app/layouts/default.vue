@@ -128,7 +128,7 @@ const groups = computed(() => [
       <template #header="{ collapsed }">
         <div
           class="flex items-center gap-3 transition-all duration-300 ease-in-out"
-          :class="collapsed ? 'p-3' : 'p-4'"
+          :class="collapsed ? 'p-3 justify-center' : 'p-4'"
         >
           <div
             class="flex items-center justify-center rounded-lg overflow-hidden transition-all duration-300 ease-in-out r-2 shrink-0"
@@ -145,7 +145,7 @@ const groups = computed(() => [
             class="flex flex-col transition-opacity duration-300 ease-in-out"
           >
             <span class="font-bold text-lg">Devion</span>
-            <span class="text-xs text-muted">Portfolio Builder</span>
+            <span class="text-xs text-muted">Management your projects</span>
           </div>
         </div>
       </template>

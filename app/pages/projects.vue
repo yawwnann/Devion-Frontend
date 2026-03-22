@@ -77,6 +77,8 @@ const showGitHubModal = ref(false);
 const githubRepoInput = ref("");
 const selectedProject = ref<Project | null>(null);
 const syncing = ref(false);
+const githubRepos = ref<{ label: string; value: string }[]>([]);
+const loadingGithubRepos = ref(false);
 
 // Inline editing state
 const editingProjectId = ref<string | null>(null);
@@ -88,7 +90,7 @@ const editingPaymentId = ref<string | null | "selector">(null);
 
 // Computed - Filtered Projects
 const filteredProjects = computed(() => {
-  let result = projects.value;
+  let result = [...projects.value];
 
   // Search
   if (searchQuery.value) {
@@ -116,7 +118,12 @@ const filteredProjects = computed(() => {
     result = result.filter((p) => p.paymentId === filterPayment.value);
   }
 
-  return result;
+  // Sort by newest first
+  return result.sort(
+    (a, b) =>
+      new Date(b.createdAt || 0).getTime() -
+      new Date(a.createdAt || 0).getTime(),
+  );
 });
 
 // Computed - Stats
@@ -131,15 +138,18 @@ const stats = computed(() => {
 
 // Computed - Category Stats
 const categoryStats = computed(() => {
-  const stats = new Map<string, { count: number; category: Category }>();
+  const categoryStatsMap = new Map<
+    string,
+    { count: number; category: Category }
+  >();
 
   projects.value.forEach((project) => {
-    if (project.category) {
-      const existing = stats.get(project.category.id);
-      if (existing) {
-        existing.count++;
+    if (project.categoryId && project.category) {
+      const current = categoryStatsMap.get(project.categoryId);
+      if (current) {
+        current.count++;
       } else {
-        stats.set(project.category.id, {
+        categoryStatsMap.set(project.categoryId, {
           count: 1,
           category: project.category,
         });
@@ -147,10 +157,10 @@ const categoryStats = computed(() => {
     }
   });
 
-  return Array.from(stats.values()).sort((a, b) => b.count - a.count);
+  return Array.from(categoryStatsMap.values()).sort(
+    (a, b) => b.count - a.count,
+  );
 });
-
-// Computed - Used Categories (only categories that are used in projects)
 const usedCategories = computed(() => {
   const categoryIds = new Set(
     projects.value
@@ -261,20 +271,32 @@ const handleCoverSelected = (file: File) => {
 };
 
 const updateTitle = async () => {
+  const oldTitle = pageSettings.value.title;
+
   try {
-    await api.patch("/projects/settings", { title: pageSettings.value.title });
+    const result = await api.patch<PageSettings>("/projects/settings", {
+      title: pageSettings.value.title,
+    });
+    pageSettings.value = result;
   } catch (e) {
     console.error("Failed to update title:", e);
+    pageSettings.value.title = oldTitle;
+    alert("Failed to update title");
   }
 };
 
 const updateDescription = async () => {
+  const oldDescription = pageSettings.value.description;
+
   try {
-    await api.patch("/projects/settings", {
+    const result = await api.patch<PageSettings>("/projects/settings", {
       description: pageSettings.value.description,
     });
+    pageSettings.value = result;
   } catch (e) {
     console.error("Failed to update description:", e);
+    pageSettings.value.description = oldDescription;
+    alert("Failed to update description");
   }
 };
 
@@ -283,18 +305,36 @@ const updateProjectField = async (
   field: string,
   value: unknown,
 ) => {
+  const oldProjectIndex = projects.value.findIndex((p) => p.id === project.id);
+  if (oldProjectIndex === -1) return;
+
+  // Save old state for rollback
+  const oldProject = { ...projects.value[oldProjectIndex] };
+
+  // Optimistic update
+  projects.value[oldProjectIndex] = {
+    ...projects.value[oldProjectIndex],
+    [field]: value,
+  } as Project;
+
   try {
     await api.patch(`/projects/${project.id}`, { [field]: value });
-    await loadData();
     editingProjectId.value = null;
     editingField.value = null;
   } catch (e) {
     console.error("Failed to update project:", e);
+    // Rollback on error
+    projects.value[oldProjectIndex] = oldProject as Project;
+    alert("Failed to update project");
   }
 };
 
 const createProject = async () => {
-  await api.post("/projects", form.value);
+  const newProject = await api.post<Project>("/projects", form.value);
+
+  // Optimistic add
+  projects.value.push(newProject);
+
   showModal.value = false;
   form.value = {
     name: "",
@@ -306,7 +346,6 @@ const createProject = async () => {
     startDate: "",
     dueDate: "",
   };
-  await loadData();
 };
 
 const bulkDelete = async () => {
@@ -314,18 +353,28 @@ const bulkDelete = async () => {
   if (!confirm(`Delete ${selectedProjects.value.length} selected projects?`))
     return;
 
+  // Save state for rollback
+  const oldProjects = [...projects.value];
+  const idsToDelete = [...selectedProjects.value];
+
   try {
+    // Optimistic delete
+    projects.value = projects.value.filter(
+      (p) => !selectedProjects.value.includes(p.id),
+    );
+
     // Delete sequentially to avoid rate limiting
-    for (const id of selectedProjects.value) {
+    for (const id of idsToDelete) {
       await api.delete(`/projects/${id}`);
-      // Small delay to prevent rate limiting
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
+
     selectedProjects.value = [];
     selectAll.value = false;
-    await loadData();
   } catch (e) {
     console.error("Failed to delete projects:", e);
+    // Rollback on error
+    projects.value = oldProjects;
     alert("Failed to delete some projects. Please try again.");
   }
 };
@@ -333,40 +382,87 @@ const bulkDelete = async () => {
 const bulkUpdateStatus = async (status: string) => {
   if (selectedProjects.value.length === 0) return;
 
+  // Save old state for rollback
+  const oldProjectStates = projects.value
+    .filter((p) => selectedProjects.value.includes(p.id))
+    .map((p) => ({ id: p.id, oldStatus: p.status }));
+
+  // Optimistic update
+  projects.value = projects.value.map((p) => {
+    if (selectedProjects.value.includes(p.id)) {
+      return { ...p, status };
+    }
+    return p;
+  });
+
   try {
     // Update sequentially to avoid rate limiting
     for (const id of selectedProjects.value) {
       await api.patch(`/projects/${id}`, { status });
-      // Small delay to prevent rate limiting
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
+
     selectedProjects.value = [];
     selectAll.value = false;
-    await loadData();
   } catch (e) {
     console.error("Failed to update projects:", e);
+    // Rollback on error
+    projects.value = projects.value.map((p) => {
+      const oldState = oldProjectStates.find((s) => s.id === p.id);
+      if (oldState) {
+        return { ...p, status: oldState.oldStatus };
+      }
+      return p;
+    });
     alert("Failed to update some projects. Please try again.");
   }
 };
 
 const deleteProject = async (id: string) => {
   if (!confirm("Delete this project?")) return;
-  await api.delete(`/projects/${id}`);
-  await loadData();
+
+  // Save for rollback
+  const oldIndex = projects.value.findIndex((p) => p.id === id);
+  if (oldIndex === -1) return;
+  const oldProject = projects.value[oldIndex];
+
+  // Optimistic delete
+  projects.value = projects.value.filter((p) => p.id !== id);
+
+  try {
+    await api.delete(`/projects/${id}`);
+  } catch (e) {
+    console.error("Failed to delete project:", e);
+    // Rollback
+    projects.value.splice(oldIndex, 0, oldProject as Project);
+    alert("Failed to delete project");
+  }
 };
 
 const saveCategory = async () => {
-  await api.post("/project-categories", categoryForm.value);
+  const newCategory = await api.post<Category>(
+    "/project-categories",
+    categoryForm.value,
+  );
+
+  // Optimistic add
+  categories.value.push(newCategory);
+
   showCategoryModal.value = false;
   categoryForm.value = { name: "", color: "zinc" };
-  await loadData();
 };
 
 const savePaymentMethod = async () => {
-  await api.post("/payment-methods", paymentForm.value);
+  const newPayment = await api.post<PaymentMethod>(
+    "/payment-methods",
+    paymentForm.value,
+  );
+
+  // Optimistic add
+  paymentMethods.value.push(newPayment);
+
   showPaymentModal.value = false;
   paymentForm.value = { name: "", color: "zinc" };
-  await loadData();
 };
 
 const openNewProjectModal = () => {
@@ -396,26 +492,76 @@ const updateCategory = async (category: {
   name: string;
   color: string;
 }) => {
+  const oldCategoryIndex = categories.value.findIndex(
+    (c) => c.id === category.id,
+  );
+  if (oldCategoryIndex === -1) return;
+
+  // Save old state for rollback
+  const oldCategory = { ...categories.value[oldCategoryIndex] };
+
+  // Optimistic update
+  categories.value[oldCategoryIndex] = { ...category };
+
+  // Also update all projects that use this category
+  const affectedProjects = projects.value.filter(
+    (p) => p.categoryId === category.id,
+  );
+  const oldProjectStates = affectedProjects.map((p) => ({ ...p }));
+
+  affectedProjects.forEach((project, idx) => {
+    const projectIndex = projects.value.findIndex((p) => p.id === project.id);
+    if (projectIndex !== -1) {
+      projects.value[projectIndex] = {
+        ...project,
+        category: { ...category },
+      };
+    }
+  });
+
   try {
     await api.patch(`/project-categories/${category.id}`, {
       name: category.name,
       color: category.color,
     });
-    await loadData();
     editingCategoryId.value = null;
   } catch (e: any) {
     console.error("Failed to update category:", e);
+    // Rollback on error
+    if (oldCategoryIndex !== -1) {
+      categories.value[oldCategoryIndex] = oldCategory as Category;
+    }
+    affectedProjects.forEach((oldProj, idx) => {
+      const projectIndex = projects.value.findIndex((p) => p.id === oldProj.id);
+      if (projectIndex !== -1) {
+        projects.value[projectIndex] = oldProjectStates[idx] as Project;
+      }
+    });
     alert(e.response?.data?.message || "Failed to update category");
   }
 };
 
 const deleteCategory = async (id: string) => {
+  const oldCategories = [...categories.value];
+  const oldProjects = [...projects.value];
+
   try {
     await api.delete(`/project-categories/${id}`);
-    await loadData();
+    // Optimistic delete
+    categories.value = categories.value.filter((c) => c.id !== id);
+    // Remove category from all affected projects
+    projects.value = projects.value.map((p) => {
+      if (p.categoryId === id) {
+        return { ...p, categoryId: null, category: null };
+      }
+      return p;
+    });
     editingCategoryId.value = null;
   } catch (e: any) {
     console.error("Failed to delete category:", e);
+    // Rollback on error
+    categories.value = oldCategories;
+    projects.value = oldProjects;
     alert(e.response?.data?.message || "Failed to delete category");
   }
 };
@@ -425,52 +571,130 @@ const updatePaymentMethod = async (payment: {
   name: string;
   color: string;
 }) => {
+  const oldPaymentIndex = paymentMethods.value.findIndex(
+    (p) => p.id === payment.id,
+  );
+  if (oldPaymentIndex === -1) return;
+
+  // Save old state for rollback
+  const oldPayment = { ...paymentMethods.value[oldPaymentIndex] };
+
+  // Optimistic update
+  paymentMethods.value[oldPaymentIndex] = { ...payment };
+
+  // Also update all projects that use this payment
+  const affectedProjects = projects.value.filter(
+    (p) => p.paymentId === payment.id,
+  );
+  const oldProjectStates = affectedProjects.map((p) => ({ ...p }));
+
+  affectedProjects.forEach((project, idx) => {
+    const projectIndex = projects.value.findIndex((p) => p.id === project.id);
+    if (projectIndex !== -1) {
+      projects.value[projectIndex] = {
+        ...project,
+        payment: { ...payment },
+      };
+    }
+  });
+
   try {
     await api.patch(`/payment-methods/${payment.id}`, {
       name: payment.name,
       color: payment.color,
     });
-    await loadData();
     editingPaymentId.value = null;
   } catch (e: any) {
     console.error("Failed to update payment method:", e);
+    // Rollback on error
+    if (oldPaymentIndex !== -1) {
+      paymentMethods.value[oldPaymentIndex] = oldPayment as PaymentMethod;
+    }
+    affectedProjects.forEach((oldProj, idx) => {
+      const projectIndex = projects.value.findIndex((p) => p.id === oldProj.id);
+      if (projectIndex !== -1) {
+        projects.value[projectIndex] = oldProjectStates[idx] as Project;
+      }
+    });
     alert(e.response?.data?.message || "Failed to update payment method");
   }
 };
 
 const deletePaymentMethod = async (id: string) => {
+  const oldPaymentMethods = [...paymentMethods.value];
+  const oldProjects = [...projects.value];
+
   try {
     await api.delete(`/payment-methods/${id}`);
-    await loadData();
+    // Optimistic delete
+    paymentMethods.value = paymentMethods.value.filter((pm) => pm.id !== id);
+    // Remove payment from all affected projects
+    projects.value = projects.value.map((p) => {
+      if (p.paymentId === id) {
+        return { ...p, paymentId: null, payment: null };
+      }
+      return p;
+    });
     editingPaymentId.value = null;
   } catch (e: any) {
     console.error("Failed to delete payment method:", e);
+    // Rollback on error
+    paymentMethods.value = oldPaymentMethods;
+    projects.value = oldProjects;
     alert(e.response?.data?.message || "Failed to delete payment method");
   }
 };
 
 // GitHub Sync Methods
-const openGitHubModal = (project: Project) => {
+const openGitHubModal = async (project: Project) => {
   selectedProject.value = project;
   githubRepoInput.value = project.githubRepo || "";
   showGitHubModal.value = true;
+
+  loadingGithubRepos.value = true;
+  try {
+    const repos = await api.get<any[]>("/github/repos");
+    githubRepos.value = repos.map((r) => ({
+      label: r.fullName,
+      value: r.fullName,
+    }));
+  } catch (e) {
+    console.error("Failed to fetch GitHub repos:", e);
+  } finally {
+    loadingGithubRepos.value = false;
+  }
 };
 
 const linkGitHubRepo = async () => {
   if (!selectedProject.value || !githubRepoInput.value.trim()) return;
 
+  const oldProjectIndex = projects.value.findIndex(
+    (p) => p.id === selectedProject.value?.id,
+  );
+  if (oldProjectIndex === -1) return;
+
+  const oldProject = { ...projects.value[oldProjectIndex] } as Project;
+  const githubRepo = githubRepoInput.value.trim();
+
+  // Optimistic update
+  projects.value[oldProjectIndex] = {
+    ...projects.value[oldProjectIndex],
+    githubRepo,
+    githubUrl: `https://github.com/${githubRepo}`,
+  } as Project;
+
   try {
     await api.post("/github/link-repo", {
       projectId: selectedProject.value.id,
-      githubRepo: githubRepoInput.value.trim(),
+      githubRepo: githubRepo,
     });
 
-    // Reload projects to get updated data
-    await loadData();
     showGitHubModal.value = false;
     githubRepoInput.value = "";
   } catch (e: any) {
     console.error("Failed to link GitHub repo:", e);
+    // Rollback on error
+    projects.value[oldProjectIndex] = oldProject;
     alert(e.response?.data?.message || "Failed to link GitHub repository");
   }
 };
@@ -486,7 +710,6 @@ const syncGitHubIssues = async (project: Project) => {
     });
 
     alert(`Synced ${result.synced} issues to todos!`);
-    await loadData();
   } catch (e: any) {
     console.error("Failed to sync issues:", e);
     alert(e.response?.data?.message || "Failed to sync GitHub issues");
@@ -533,9 +756,12 @@ const importFile = async (file: File) => {
   const endpoint = isXlsx ? "/projects/import/xlsx" : "/projects/import/csv";
 
   importing.value = true;
+  const oldProjects = [...projects.value];
+
   try {
     const formData = new FormData();
     formData.append("file", file);
+
     const result = await api.upload<{ imported: number; errors: string[] }>(
       endpoint,
       formData,
@@ -551,9 +777,15 @@ const importFile = async (file: File) => {
       alert(`Successfully imported ${result.imported} projects!`);
     }
 
-    await loadData();
+    // Reload only if import was successful
+    if (result.imported > 0) {
+      const newProjects = await api.get<Project[]>("/projects");
+      projects.value = newProjects;
+    }
   } catch (e) {
     console.error("Failed to import file:", e);
+    // Rollback
+    projects.value = oldProjects;
     alert("Failed to import file");
   } finally {
     importing.value = false;
@@ -957,7 +1189,7 @@ onMounted(loadData);
   <!-- GitHub Repo Link Modal -->
   <UModal v-model:open="showGitHubModal">
     <template #content>
-      <div class="p-6 bg-white dark:bg-zinc-950 max-w-md mx-auto">
+      <div class="p-6">
         <div class="flex items-center justify-between mb-6">
           <div class="flex items-center gap-2">
             <UIcon name="i-lucide-github" class="size-5 text-primary-600" />
@@ -976,26 +1208,26 @@ onMounted(loadData);
             <label class="block text-sm font-medium mb-2.5">
               GitHub Repository <span class="text-red-500">*</span>
             </label>
-            <div class="relative">
-              <UIcon
-                name="i-lucide-github"
-                class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-400"
-              />
-              <input
+            <div
+              v-if="loadingGithubRepos"
+              class="flex items-center gap-2 text-sm text-zinc-500 py-2"
+            >
+              <UIcon name="i-lucide-loader-2" class="size-4 animate-spin" />
+              Loading repositories...
+            </div>
+            <div v-else class="relative">
+              <USelect
                 v-model="githubRepoInput"
-                type="text"
-                placeholder="owner/repository"
-                class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 transition"
+                :items="githubRepos"
+                icon="i-lucide-github"
+                placeholder="Select a repository"
+                class="w-full"
+                size="lg"
               />
             </div>
             <p class="text-xs text-muted mt-1.5 flex items-center gap-1">
               <UIcon name="i-lucide-info" class="size-3" />
-              Format:
-              <code
-                class="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-primary-600"
-                >owner/repo</code
-              >
-              (e.g. facebook/react)
+              Select a repository to link to this project
             </p>
           </div>
 

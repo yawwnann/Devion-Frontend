@@ -54,6 +54,9 @@ const reviewComment = ref("");
 const reviewEvent = ref<"APPROVE" | "REQUEST_CHANGES" | "COMMENT">("COMMENT");
 const submittingReview = ref(false);
 
+const showAlertModal = ref(false);
+const alertMessage = ref("");
+
 // Store current PR repo info for submit
 const currentPRRepo = ref<{ owner: string; repo: string } | null>(null);
 const loadingPRDetail = ref(false);
@@ -72,7 +75,7 @@ const fetchPRs = async () => {
   loading.value = true;
   try {
     const data = await api.get<PR[]>(
-      `/github/pull-requests?state=${selectedState.value}`
+      `/github/pull-requests?state=${selectedState.value}`,
     );
     pullRequests.value = data || [];
   } catch (error: unknown) {
@@ -111,7 +114,7 @@ const openPRModal = async (pr: PR) => {
 
   const repoPath = pr.repository_url.replace(
     "https://api.github.com/repos/",
-    ""
+    "",
   );
   const [owner, repo] = repoPath.split("/");
 
@@ -133,7 +136,7 @@ const openPRModal = async (pr: PR) => {
     const [detail, files] = await Promise.all([
       api.get<PRDetail>(`/github/pull-requests/${owner}/${repo}/${pr.number}`),
       api.get<PRFile[]>(
-        `/github/pull-requests/${owner}/${repo}/${pr.number}/files`
+        `/github/pull-requests/${owner}/${repo}/${pr.number}/files`,
       ),
     ]);
     selectedPR.value = detail;
@@ -175,9 +178,9 @@ const submitReview = async () => {
     await api.post(
       `/github/pull-requests/${owner}/${repo}/${selectedPR.value.number}/reviews`,
       {
-        comment: reviewComment.value,
+        body: reviewComment.value,
         event: reviewEvent.value,
-      }
+      },
     );
     toast.add({
       title: "Success",
@@ -188,12 +191,12 @@ const submitReview = async () => {
     showPRModal.value = false;
     fetchPRs();
   } catch (error: any) {
-    const message = error?.response?.data?.message || "Failed to submit review";
-    toast.add({
-      title: "Error",
-      description: message,
-      color: "error",
-    });
+    const message =
+      error?.message ||
+      error?.response?.data?.message ||
+      "Failed to submit review";
+    alertMessage.value = message;
+    showAlertModal.value = true;
   } finally {
     submittingReview.value = false;
   }
@@ -214,7 +217,7 @@ const formatTimeAgo = (date: string) => {
 };
 
 const getStatusColor = (
-  status: string
+  status: string,
 ): "success" | "warning" | "error" | "info" | "neutral" => {
   const colors: Record<
     string,
@@ -229,7 +232,7 @@ const getStatusColor = (
 };
 
 const getReviewStateColor = (
-  state: string
+  state: string,
 ): "success" | "warning" | "error" | "info" | "neutral" => {
   const colors: Record<
     string,
@@ -522,6 +525,39 @@ watch(selectedState, () => fetchPRs());
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </template>
+  </UModal>
+
+  <!-- Alert Modal for Submission Errors -->
+  <UModal v-model:open="showAlertModal">
+    <template #content>
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3
+            class="text-lg font-semibold text-red-600 dark:text-red-400 flex items-center gap-2"
+          >
+            <UIcon name="i-lucide-alert-circle" class="size-5" />
+            Review Submission Failed
+          </h3>
+          <UButton
+            icon="i-lucide-x"
+            variant="ghost"
+            color="neutral"
+            size="sm"
+            @click="showAlertModal = false"
+          />
+        </div>
+        <div
+          class="p-4 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-200 rounded-lg text-sm mb-6 border border-red-200 dark:border-red-900/50"
+        >
+          <p>{{ alertMessage }}</p>
+        </div>
+        <div class="flex justify-end">
+          <UButton color="neutral" @click="showAlertModal = false">
+            Close
+          </UButton>
         </div>
       </div>
     </template>

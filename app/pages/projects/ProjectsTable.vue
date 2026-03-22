@@ -42,7 +42,10 @@ const { getBadgeClasses, getStatusColor, statusOptions } = useProjectColors();
 const onToggleSelectAll = (checked: boolean) => {
   emit("update:selectAll", checked);
   if (checked) {
-    emit("update:selectedProjects", props.projects.map((p) => p.id));
+    emit(
+      "update:selectedProjects",
+      props.projects.map((p) => p.id),
+    );
   } else {
     emit("update:selectedProjects", []);
   }
@@ -59,7 +62,7 @@ const onToggleProject = (id: string) => {
   emit("update:selectedProjects", newSelection);
   emit(
     "update:selectAll",
-    newSelection.length === props.projects.length && props.projects.length > 0
+    newSelection.length === props.projects.length && props.projects.length > 0,
   );
 };
 
@@ -120,34 +123,56 @@ const formatDate = (dateString?: string | null) => {
       class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50"
     >
       <table class="w-full text-left">
-        <thead class="bg-zinc-50 dark:bg-zinc-900/50 text-xs uppercase text-zinc-500 font-medium">
+        <thead
+          class="bg-zinc-50 dark:bg-zinc-900/50 text-xs uppercase text-zinc-500 font-medium"
+        >
           <tr>
             <th class="px-4 py-3 w-10">
               <input
                 type="checkbox"
                 :checked="selectAll"
                 class="size-4 rounded border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 focus:ring-primary-500"
-                @change="onToggleSelectAll(($event.target as HTMLInputElement).checked)"
+                @change="
+                  onToggleSelectAll(($event.target as HTMLInputElement).checked)
+                "
               />
             </th>
             <th class="px-4 py-3 w-12">#</th>
-            <th class="px-4 py-3 min-w-[200px]">Project Name</th>
+            <th class="px-4 py-3 min-w-50">Project Name</th>
             <th class="px-4 py-3 w-20">Order</th>
             <th class="px-4 py-3 w-32">Status</th>
 
             <!-- Category Header -->
-            <th class="px-4 py-3 w-32 relative group cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
-              <div class="flex items-center gap-1" @click.stop="emit('update:editingCategoryId', 'selector')">
+            <th
+              class="px-4 py-3 w-32 relative group cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+            >
+              <div
+                class="flex items-center gap-1"
+                @click.stop="emit('update:editingCategoryId', 'selector')"
+              >
                 Category
-                <UIcon name="i-lucide-chevron-down" class="size-3 opacity-0 group-hover:opacity-100 transition" />
+                <UIcon
+                  name="i-lucide-chevron-down"
+                  class="size-3 opacity-0 group-hover:opacity-100 transition"
+                />
               </div>
 
               <!-- Category Selector & Editor -->
-              <div v-if="editingCategoryId" class="absolute top-full left-0 mt-2 z-50 text-transform-none font-normal normal-case">
+              <div
+                v-if="editingCategoryId"
+                class="absolute top-full left-0 mt-2 z-50 text-transform-none font-normal normal-case"
+              >
                 <!-- Badge Selector -->
-                <div v-if="editingCategoryId === 'selector'" class="bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 p-4 min-w-[280px]">
+                <div
+                  v-if="editingCategoryId === 'selector'"
+                  class="bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 p-4 min-w-70"
+                >
                   <div class="flex items-center justify-between mb-3">
-                    <h4 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Select Category</h4>
+                    <h4
+                      class="text-sm font-semibold text-zinc-900 dark:text-zinc-100"
+                    >
+                      Select Category
+                    </h4>
                     <button
                       class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition"
                       @click.stop="emit('update:editingCategoryId', null)"
@@ -170,14 +195,19 @@ const formatDate = (dateString?: string | null) => {
                       >
                         {{ cat.name }}
                       </span>
-                      <UIcon name="i-lucide-pencil" class="size-3 text-muted opacity-0 group-hover/item:opacity-100 transition" />
+                      <UIcon
+                        name="i-lucide-pencil"
+                        class="size-3 text-muted opacity-0 group-hover/item:opacity-100 transition"
+                      />
                     </button>
                   </div>
                 </div>
 
                 <!-- Property Editor -->
                 <PropertyEditor
-                  v-for="cat in categories.filter(c => c.id === editingCategoryId)"
+                  v-for="cat in categories.filter(
+                    (c) => c.id === editingCategoryId,
+                  )"
                   v-else-if="editingCategoryId !== 'selector'"
                   :key="cat.id"
                   :property="cat"
@@ -190,18 +220,36 @@ const formatDate = (dateString?: string | null) => {
             </th>
 
             <!-- Payment Header -->
-            <th class="px-4 py-3 w-32 relative group cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
-              <div class="flex items-center gap-1" @click.stop="emit('update:editingPaymentId', 'selector')">
+            <th
+              class="px-4 py-3 w-32 relative group cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+            >
+              <div
+                class="flex items-center gap-1"
+                @click.stop="emit('update:editingPaymentId', 'selector')"
+              >
                 Payment
-                <UIcon name="i-lucide-chevron-down" class="size-3 opacity-0 group-hover:opacity-100 transition" />
+                <UIcon
+                  name="i-lucide-chevron-down"
+                  class="size-3 opacity-0 group-hover:opacity-100 transition"
+                />
               </div>
 
-               <!-- Payment Selector & Editor -->
-              <div v-if="editingPaymentId" class="absolute top-full left-0 mt-2 z-50 text-transform-none font-normal normal-case">
-                 <!-- Badge Selector -->
-                <div v-if="editingPaymentId === 'selector'" class="bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 p-4 min-w-[280px]">
+              <!-- Payment Selector & Editor -->
+              <div
+                v-if="editingPaymentId"
+                class="absolute top-full left-0 mt-2 z-50 text-transform-none font-normal normal-case"
+              >
+                <!-- Badge Selector -->
+                <div
+                  v-if="editingPaymentId === 'selector'"
+                  class="bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 p-4 min-w-70"
+                >
                   <div class="flex items-center justify-between mb-3">
-                    <h4 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Select Payment</h4>
+                    <h4
+                      class="text-sm font-semibold text-zinc-900 dark:text-zinc-100"
+                    >
+                      Select Payment
+                    </h4>
                     <button
                       class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition"
                       @click.stop="emit('update:editingPaymentId', null)"
@@ -224,14 +272,19 @@ const formatDate = (dateString?: string | null) => {
                       >
                         {{ pm.name }}
                       </span>
-                      <UIcon name="i-lucide-pencil" class="size-3 text-muted opacity-0 group-hover/item:opacity-100 transition" />
+                      <UIcon
+                        name="i-lucide-pencil"
+                        class="size-3 text-muted opacity-0 group-hover/item:opacity-100 transition"
+                      />
                     </button>
                   </div>
                 </div>
 
                 <!-- Property Editor -->
                 <PropertyEditor
-                  v-for="pm in paymentMethods.filter(p => p.id === editingPaymentId)"
+                  v-for="pm in paymentMethods.filter(
+                    (p) => p.id === editingPaymentId,
+                  )"
                   v-else-if="editingPaymentId !== 'selector'"
                   :key="pm.id"
                   :property="pm"
@@ -262,19 +315,35 @@ const formatDate = (dateString?: string | null) => {
                 @change="onToggleProject(project.id)"
               />
             </td>
-            <td class="px-4 py-3 text-sm text-emerald-600 dark:text-emerald-400 font-mono font-semibold">
+            <td
+              class="px-4 py-3 text-sm text-emerald-600 dark:text-emerald-400 font-mono font-semibold"
+            >
               {{ index + 1 }}
             </td>
 
             <!-- Project Name -->
             <td class="px-4 py-3">
               <input
-                v-if="editingProjectId === project.id && editingField === 'name'"
+                v-if="
+                  editingProjectId === project.id && editingField === 'name'
+                "
                 :value="project.name"
                 class="w-full px-2 py-1 text-sm font-medium bg-white dark:bg-zinc-800 border border-emerald-500 rounded outline-none"
                 autofocus
-                @blur="onUpdateField(project, 'name', ($event.target as HTMLInputElement).value)"
-                @keyup.enter="onUpdateField(project, 'name', ($event.target as HTMLInputElement).value)"
+                @blur="
+                  onUpdateField(
+                    project,
+                    'name',
+                    ($event.target as HTMLInputElement).value,
+                  )
+                "
+                @keyup.enter="
+                  onUpdateField(
+                    project,
+                    'name',
+                    ($event.target as HTMLInputElement).value,
+                  )
+                "
                 @keyup.esc="cancelEdit"
               />
               <div
@@ -289,12 +358,26 @@ const formatDate = (dateString?: string | null) => {
             <!-- Order -->
             <td class="px-4 py-3">
               <input
-                v-if="editingProjectId === project.id && editingField === 'order'"
+                v-if="
+                  editingProjectId === project.id && editingField === 'order'
+                "
                 :value="project.order || ''"
                 class="w-full px-2 py-1 text-sm bg-white dark:bg-zinc-800 border border-emerald-500 rounded outline-none"
                 autofocus
-                @blur="onUpdateField(project, 'order', ($event.target as HTMLInputElement).value || null)"
-                @keyup.enter="onUpdateField(project, 'order', ($event.target as HTMLInputElement).value || null)"
+                @blur="
+                  onUpdateField(
+                    project,
+                    'order',
+                    ($event.target as HTMLInputElement).value || null,
+                  )
+                "
+                @keyup.enter="
+                  onUpdateField(
+                    project,
+                    'order',
+                    ($event.target as HTMLInputElement).value || null,
+                  )
+                "
                 @keyup.esc="cancelEdit"
               />
               <div
@@ -309,15 +392,27 @@ const formatDate = (dateString?: string | null) => {
             <!-- Status -->
             <td class="px-4 py-3">
               <select
-                v-if="editingProjectId === project.id && editingField === 'status'"
+                v-if="
+                  editingProjectId === project.id && editingField === 'status'
+                "
                 :value="project.status"
                 class="text-xs px-2 py-1 bg-white dark:bg-zinc-800 border border-emerald-500 rounded outline-none"
                 autofocus
-                @change="onUpdateField(project, 'status', ($event.target as HTMLSelectElement).value)"
+                @change="
+                  onUpdateField(
+                    project,
+                    'status',
+                    ($event.target as HTMLSelectElement).value,
+                  )
+                "
                 @blur="cancelEdit"
                 @keyup.esc="cancelEdit"
               >
-                <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
+                <option
+                  v-for="opt in statusOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
                   {{ opt.label }}
                 </option>
               </select>
@@ -326,7 +421,12 @@ const formatDate = (dateString?: string | null) => {
                 class="cursor-pointer"
                 @click="startEdit(project.id, 'status')"
               >
-                <span :class="['inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 text-zinc-800', getBadgeClasses(getStatusColor(project.status))]">
+                <span
+                  :class="[
+                    'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 text-zinc-800',
+                    getBadgeClasses(getStatusColor(project.status)),
+                  ]"
+                >
                   {{ project.status }}
                 </span>
               </div>
@@ -335,11 +435,19 @@ const formatDate = (dateString?: string | null) => {
             <!-- Category -->
             <td class="px-4 py-3">
               <select
-                v-if="editingProjectId === project.id && editingField === 'category'"
+                v-if="
+                  editingProjectId === project.id && editingField === 'category'
+                "
                 :value="project.categoryId || ''"
                 class="text-xs px-2 py-1 bg-white dark:bg-zinc-800 border border-emerald-500 rounded outline-none w-full"
                 autofocus
-                @change="onUpdateField(project, 'categoryId', ($event.target as HTMLSelectElement).value || null)"
+                @change="
+                  onUpdateField(
+                    project,
+                    'categoryId',
+                    ($event.target as HTMLSelectElement).value || null,
+                  )
+                "
                 @blur="cancelEdit"
                 @keyup.esc="cancelEdit"
               >
@@ -350,12 +458,15 @@ const formatDate = (dateString?: string | null) => {
               </select>
               <div
                 v-else
-                class="cursor-pointer min-h-[20px]"
+                class="cursor-pointer min-h-5"
                 @click="startEdit(project.id, 'category')"
               >
                 <span
                   v-if="project.category"
-                  :class="['inline-flex items-center px-2 py-0.5 rounded text-xs font-medium', getBadgeClasses(project.category.color)]"
+                  :class="[
+                    'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
+                    getBadgeClasses(project.category.color),
+                  ]"
                 >
                   {{ project.category.name }}
                 </span>
@@ -364,29 +475,44 @@ const formatDate = (dateString?: string | null) => {
             </td>
 
             <!-- Payment -->
-             <td class="px-4 py-3">
+            <td class="px-4 py-3">
               <select
-                v-if="editingProjectId === project.id && editingField === 'payment'"
+                v-if="
+                  editingProjectId === project.id && editingField === 'payment'
+                "
                 :value="project.paymentId || ''"
                 class="text-xs px-2 py-1 bg-white dark:bg-zinc-800 border border-emerald-500 rounded outline-none w-full"
                 autofocus
-                @change="onUpdateField(project, 'paymentId', ($event.target as HTMLSelectElement).value || null)"
+                @change="
+                  onUpdateField(
+                    project,
+                    'paymentId',
+                    ($event.target as HTMLSelectElement).value || null,
+                  )
+                "
                 @blur="cancelEdit"
                 @keyup.esc="cancelEdit"
               >
                 <option value="">No Payment</option>
-                <option v-for="pm in paymentMethods" :key="pm.id" :value="pm.id">
+                <option
+                  v-for="pm in paymentMethods"
+                  :key="pm.id"
+                  :value="pm.id"
+                >
                   {{ pm.name }}
                 </option>
               </select>
               <div
                 v-else
-                class="cursor-pointer min-h-[20px]"
+                class="cursor-pointer min-h-5"
                 @click="startEdit(project.id, 'payment')"
               >
                 <span
                   v-if="project.payment"
-                  :class="['inline-flex items-center px-2 py-0.5 rounded text-xs font-medium', getBadgeClasses(project.payment.color)]"
+                  :class="[
+                    'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
+                    getBadgeClasses(project.payment.color),
+                  ]"
                 >
                   {{ project.payment.name }}
                 </span>
@@ -426,18 +552,24 @@ const formatDate = (dateString?: string | null) => {
 
             <!-- Information -->
             <td class="px-4 py-3 text-xs text-zinc-500">
-               <div class="space-y-1">
-                 <div>Start: {{ formatDate(project.startDate) }}</div>
-                 <div>Due: {{ formatDate(project.dueDate) }}</div>
-                 <div v-if="project.information" class="truncate max-w-[150px]" :title="project.information">
-                   {{ project.information }}
-                 </div>
-               </div>
+              <div class="space-y-1">
+                <div>Start: {{ formatDate(project.startDate) }}</div>
+                <div>Due: {{ formatDate(project.dueDate) }}</div>
+                <div
+                  v-if="project.information"
+                  class="truncate max-w-37.5"
+                  :title="project.information"
+                >
+                  {{ project.information }}
+                </div>
+              </div>
             </td>
 
             <!-- Actions -->
             <td class="px-4 py-3">
-              <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div
+                class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
                 <UButton
                   variant="ghost"
                   color="neutral"
