@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PageSettings } from "./types";
+import type { ProjectPageSettings as PageSettings } from "~/types/projects";
 
 interface Props {
   pageSettings: PageSettings;

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import PropertyEditor from "./PropertyEditor.vue";
-import type { Category, PaymentMethod, Project } from "./types";
+import type { Category, PaymentMethod, Project } from "~/types/projects";
 import { useProjectColors } from "./composables/useProjectColors";
 
 interface Props {

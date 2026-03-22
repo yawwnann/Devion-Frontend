@@ -1,19 +1,19 @@
 ﻿<script setup lang="ts">
 import { Cropper } from "vue-advanced-cropper";
 import "vue-advanced-cropper/dist/style.css";
-import PropertyEditor from "./projects/PropertyEditor.vue";
-import PageHeader from "./projects/PageHeader.vue";
-import StatsCards from "./projects/StatsCards.vue";
-import ProjectFilters from "./projects/ProjectFilters.vue";
-import BulkActionsBar from "./projects/BulkActionsBar.vue";
-import ProjectsTable from "./projects/ProjectsTable.vue";
+import PropertyEditor from "~/components/projects/PropertyEditor.vue";
+import PageHeader from "~/components/projects/PageHeader.vue";
+import StatsCards from "~/components/projects/StatsCards.vue";
+import ProjectFilters from "~/components/projects/ProjectFilters.vue";
+import BulkActionsBar from "~/components/projects/BulkActionsBar.vue";
+import ProjectsTable from "~/components/projects/ProjectsTable.vue";
 import type {
   Category,
   PaymentMethod,
   Project,
-  PageSettings,
-} from "./projects/types";
-import { useProjectColors } from "./projects/composables/useProjectColors";
+  ProjectPageSettings as PageSettings,
+} from "~/types/projects";
+import { useProjectColors } from "~/components/projects/composables/useProjectColors";
 
 const api = useApi();
 

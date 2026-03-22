@@ -21,7 +21,7 @@ export interface TodoWeek {
   todos: Todo[];
 }
 
-export interface PageSettings {
+export interface TodoPageSettings {
   id: string;
   cover: string | null;
   icon: string | null;

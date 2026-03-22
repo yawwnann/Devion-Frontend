@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, computed } from "vue";
 import draggable from "vuedraggable";
-import type { Todo, Column } from "./types";
+import type { Todo, Column } from "~/types/todos";
 
 interface Props {
   column: Column;
@@ -117,10 +117,7 @@ const handleDragChange = (evt: any) => {
           class="w-2 h-2 rounded-full ring-2 ring-opacity-50"
           :class="[column.dotClass, getRingClass(column.id)]"
         />
-        <h3
-          class="font-semibold text-sm"
-          :class="column.headerClass"
-        >
+        <h3 class="font-semibold text-sm" :class="column.headerClass">
           {{ column.label }}
         </h3>
         <span

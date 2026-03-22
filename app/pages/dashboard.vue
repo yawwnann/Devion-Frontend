@@ -1,8 +1,8 @@
 ﻿<script setup lang="ts">
 import { ref, onMounted } from "vue";
-import DashboardStats from "~/pages/dashboard/DashboardStats.vue";
-import DashboardCharts from "~/pages/dashboard/DashboardCharts.vue";
-import DashboardLists from "~/pages/dashboard/DashboardLists.vue";
+import DashboardStats from "~/components/dashboard/DashboardStats.vue";
+import DashboardCharts from "~/components/dashboard/DashboardCharts.vue";
+import DashboardLists from "~/components/dashboard/DashboardLists.vue";
 
 /* =====================
    Types

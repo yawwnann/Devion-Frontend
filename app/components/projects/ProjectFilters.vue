@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Category, PaymentMethod } from "./types";
+import type { Category, PaymentMethod } from "~/types/projects";
 import { useProjectColors } from "./composables/useProjectColors";
 
 interface Props {
@@ -19,10 +19,10 @@ const emit = defineEmits<{
   "update:filterStatus": [value: string];
   "update:filterCategory": [value: string];
   "update:filterPayment": [value: string];
-  "clear": [];
+  clear: [];
   "export:csv": [];
   "export:xlsx": [];
-  "import": [file: File];
+  import: [file: File];
   "new-project": [];
 }>();
 
@@ -50,7 +50,9 @@ const onImportFile = (event: Event) => {
         :value="searchQuery"
         placeholder="Search projects..."
         class="w-full pl-9 pr-4 py-2 bg-zinc-50 dark:bg-zinc-900 border-0 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 transition text-sm"
-        @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
+        @input="
+          emit('update:searchQuery', ($event.target as HTMLInputElement).value)
+        "
       />
     </div>
 
@@ -58,14 +60,12 @@ const onImportFile = (event: Event) => {
     <select
       :value="filterStatus"
       class="px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border-0 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 transition text-sm min-w-[120px]"
-      @change="emit('update:filterStatus', ($event.target as HTMLSelectElement).value)"
+      @change="
+        emit('update:filterStatus', ($event.target as HTMLSelectElement).value)
+      "
     >
       <option value="">All Status</option>
-      <option
-        v-for="opt in statusOptions"
-        :key="opt.value"
-        :value="opt.value"
-      >
+      <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
         {{ opt.label }}
       </option>
     </select>
@@ -73,14 +73,15 @@ const onImportFile = (event: Event) => {
     <select
       :value="filterCategory"
       class="px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border-0 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 transition text-sm min-w-[140px]"
-      @change="emit('update:filterCategory', ($event.target as HTMLSelectElement).value)"
+      @change="
+        emit(
+          'update:filterCategory',
+          ($event.target as HTMLSelectElement).value,
+        )
+      "
     >
       <option value="">All Categories</option>
-      <option
-        v-for="cat in usedCategories"
-        :key="cat.id"
-        :value="cat.id"
-      >
+      <option v-for="cat in usedCategories" :key="cat.id" :value="cat.id">
         {{ cat.name }}
       </option>
     </select>
@@ -88,14 +89,12 @@ const onImportFile = (event: Event) => {
     <select
       :value="filterPayment"
       class="px-3 py-2 bg-zinc-50 dark:bg-zinc-900 border-0 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 transition text-sm min-w-[140px]"
-      @change="emit('update:filterPayment', ($event.target as HTMLSelectElement).value)"
+      @change="
+        emit('update:filterPayment', ($event.target as HTMLSelectElement).value)
+      "
     >
       <option value="">All Payments</option>
-      <option
-        v-for="pm in usedPaymentMethods"
-        :key="pm.id"
-        :value="pm.id"
-      >
+      <option v-for="pm in usedPaymentMethods" :key="pm.id" :value="pm.id">
         {{ pm.name }}
       </option>
     </select>

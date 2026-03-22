@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PageSettings } from "./types";
+import type { TodoPageSettings as PageSettings } from "~/types/todos";
 
 interface Props {
   pageSettings: PageSettings;

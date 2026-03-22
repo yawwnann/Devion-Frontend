@@ -29,7 +29,7 @@ export interface Project {
   createdAt?: string;
 }
 
-export interface PageSettings {
+export interface ProjectPageSettings {
   id: string;
   cover: string | null;
   icon: string | null;

@@ -1,11 +1,16 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import confetti from "canvas-confetti";
 import { format, formatDistanceToNow, isPast } from "date-fns";
-import TodoPageHeader from "./TodoPageHeader.vue";
-import TodoColumn from "./TodoColumn.vue";
-import CropperModal from "./CropperModal.vue";
-import type { Todo, TodoWeek, PageSettings, Column } from "./types";
+import TodoPageHeader from "~/components/todos/TodoPageHeader.vue";
+import TodoColumn from "~/components/todos/TodoColumn.vue";
+import CropperModal from "~/components/todos/CropperModal.vue";
+import type {
+  Todo,
+  TodoWeek,
+  TodoPageSettings as PageSettings,
+  Column,
+} from "~/types/todos";
 
 const api = useApi();
 
