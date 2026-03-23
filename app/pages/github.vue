@@ -35,6 +35,7 @@ interface Repo {
   forks: number;
   url: string;
   updatedAt: string;
+  githubUpdatedAt: string;
 }
 
 const repos = ref<Repo[]>([]);
@@ -44,6 +45,61 @@ const usernameInput = ref("");
 const tokenInput = ref("");
 const showGitHubModal = ref(false);
 const hasToken = ref(false);
+const sortBy = ref<"newest" | "oldest" | "stars" | "name">("newest");
+
+const sortOptions = computed(() => [
+  [
+    {
+      label: "Latest Updated",
+      value: "newest",
+      type: "checkbox" as const,
+      checked: sortBy.value === "newest",
+      onSelect: () => {
+        sortBy.value = "newest";
+      },
+    },
+  ],
+  [
+    {
+      label: "Oldest Updated",
+      value: "oldest",
+      type: "checkbox" as const,
+      checked: sortBy.value === "oldest",
+      onSelect: () => {
+        sortBy.value = "oldest";
+      },
+    },
+  ],
+  [
+    {
+      label: "Most Stars",
+      value: "stars",
+      type: "checkbox" as const,
+      checked: sortBy.value === "stars",
+      onSelect: () => {
+        sortBy.value = "stars";
+      },
+    },
+  ],
+  [
+    {
+      label: "Name (A-Z)",
+      value: "name",
+      type: "checkbox" as const,
+      checked: sortBy.value === "name",
+      onSelect: () => {
+        sortBy.value = "name";
+      },
+    },
+  ],
+]);
+
+const sortLabels: Record<string, string> = {
+  newest: "Latest Updated",
+  oldest: "Oldest Updated",
+  stars: "Most Stars",
+  name: "Name (A-Z)",
+};
 
 // Pre-fill username when modal opens
 watch(showGitHubModal, (isOpen) => {
@@ -141,10 +197,35 @@ const page = ref(1);
 const pageSize = 10;
 const totalRepos = computed(() => repos.value.length);
 const totalPages = computed(() => Math.ceil(totalRepos.value / pageSize));
+
+const sortedRepos = computed(() => {
+  const sorted = [...repos.value];
+  switch (sortBy.value) {
+    case "newest":
+      return sorted.sort(
+        (a, b) =>
+          new Date(b.githubUpdatedAt).getTime() -
+          new Date(a.githubUpdatedAt).getTime(),
+      );
+    case "oldest":
+      return sorted.sort(
+        (a, b) =>
+          new Date(a.githubUpdatedAt).getTime() -
+          new Date(b.githubUpdatedAt).getTime(),
+      );
+    case "stars":
+      return sorted.sort((a, b) => b.stars - a.stars);
+    case "name":
+      return sorted.sort((a, b) => a.name.localeCompare(b.name));
+    default:
+      return sorted;
+  }
+});
+
 const paginatedRepos = computed(() => {
   const start = (page.value - 1) * pageSize;
   const end = start + pageSize;
-  return repos.value.slice(start, end);
+  return sortedRepos.value.slice(start, end);
 });
 
 const languageColors: Record<string, string> = {
@@ -155,6 +236,33 @@ const languageColors: Record<string, string> = {
   Go: "bg-cyan-500",
   Rust: "bg-orange-500",
   Java: "bg-red-500",
+  PHP: "bg-indigo-400",
+  Blade: "bg-orange-400",
+  Vue: "bg-emerald-500",
+  HTML: "bg-orange-600",
+  CSS: "bg-blue-400",
+  Svelte: "bg-orange-500",
+  Ruby: "bg-red-600",
+  C: "bg-gray-600",
+  "C++": "bg-blue-600",
+  "C#": "bg-purple-500",
+  Dart: "bg-cyan-400",
+  Kotlin: "bg-purple-600",
+  Swift: "bg-orange-500",
+  R: "bg-blue-700",
+  MATLAB: "bg-yellow-600",
+  Perl: "bg-blue-500",
+  Haskell: "bg-purple-400",
+  Elixir: "bg-purple-600",
+  Scala: "bg-red-500",
+  Clojure: "bg-blue-500",
+  Groovy: "bg-blue-600",
+  Lua: "bg-blue-400",
+  "Objective-C": "bg-blue-500",
+  Solidity: "bg-blue-600",
+  PowerShell: "bg-blue-700",
+  Makefile: "bg-gray-500",
+  Dockerfile: "bg-blue-500",
 };
 
 const formatDate = (date: string) => {
@@ -397,7 +505,10 @@ onMounted(async () => {
             ]"
             @click="
               selectedTab = tab.id;
-              if (tab.id === 'commits') loadGitHubTodos();
+              if (tab.id === 'commits') {
+                loadGitHubTodos();
+                loadRecentCommits();
+              }
             "
           >
             <UIcon :name="tab.icon" class="size-4" />
@@ -531,8 +642,23 @@ onMounted(async () => {
               <h3 class="text-lg font-semibold">
                 Public Repositories ({{ repos.length }})
               </h3>
-              <div class="text-sm text-muted">
-                Page {{ page }} of {{ totalPages }}
+              <div class="flex items-center gap-2">
+                <UDropdownMenu
+                  :items="sortOptions"
+                  :content="{ align: 'end', collisionPadding: 12 }"
+                  :ui="{ content: 'w-40' }"
+                >
+                  <UButton
+                    variant="outline"
+                    trailing-icon="i-lucide-chevron-down"
+                    class="w-40 justify-between"
+                  >
+                    {{ sortLabels[sortBy] }}
+                  </UButton>
+                </UDropdownMenu>
+                <div class="text-sm text-muted">
+                  Page {{ page }} of {{ totalPages }}
+                </div>
               </div>
             </div>
             <div class="grid gap-3">
@@ -570,7 +696,9 @@ onMounted(async () => {
                         <UIcon name="i-lucide-git-fork" class="size-4" />
                         {{ repo.forks }}
                       </span>
-                      <span>Updated {{ formatDate(repo.updatedAt) }}</span>
+                      <span
+                        >Updated {{ formatDate(repo.githubUpdatedAt) }}</span
+                      >
                     </div>
                   </div>
                 </div>

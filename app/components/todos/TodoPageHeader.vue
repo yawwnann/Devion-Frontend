@@ -16,23 +16,7 @@ const emit = defineEmits<{
   "update:description": [value: string];
   "save:title": [];
   "save:description": [];
-  "cover-selected": [file: File];
-  "remove-cover": [];
 }>();
-
-const coverInput = ref<HTMLInputElement | null>(null);
-
-const triggerCoverInput = () => {
-  coverInput.value?.click();
-};
-
-const onCoverSelected = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  const file = target.files?.[0];
-  if (!file) return;
-  emit("cover-selected", file);
-  target.value = "";
-};
 
 const handleTitleUpdate = (event: Event) => {
   const target = event.target as HTMLInputElement;
@@ -62,59 +46,13 @@ const setDescriptionEditing = (value: boolean) => {
 </script>
 
 <template>
-  <div class="relative h-52 w-full overflow-hidden">
-    <!-- Cover Image -->
-    <img
-      v-if="pageSettings.cover"
-      :src="pageSettings.cover"
-      class="w-full h-full object-cover"
-      alt="Cover"
-    />
-    <div
-      v-else
-      class="w-full h-full bg-gradient-to-r from-zinc-200 to-zinc-300 dark:from-zinc-800 dark:to-zinc-900"
-    />
-
-    <!-- Cover Overlay Controls -->
-    <div
-      class="absolute inset-0 bg-black/0 hover:bg-black/10 dark:bg-black/0 dark:hover:bg-black/20 transition flex items-end justify-end p-6 gap-2"
-    >
-      <div
-        class="opacity-0 hover:opacity-100 transition flex gap-2"
-        :class="{ 'opacity-100': pageSettings.cover }"
-      >
-        <button
-          class="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs rounded-md backdrop-blur-md transition border border-white/20"
-          @click="triggerCoverInput"
-        >
-          {{ pageSettings.cover ? "Change" : "Add cover" }}
-        </button>
-        <button
-          v-if="pageSettings.cover"
-          class="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs rounded-md backdrop-blur-md transition border border-white/20"
-          @click="emit('remove-cover')"
-        >
-          Remove
-        </button>
-      </div>
-    </div>
-
-    <input
-      ref="coverInput"
-      type="file"
-      accept="image/*"
-      class="hidden"
-      @change="onCoverSelected"
-    />
-  </div>
-
   <!-- Page Header Info -->
-  <div class="px-6 py-6 pb-0">
+  <div class="px-6 py-6">
     <div class="flex items-center gap-4 mb-4">
       <!-- Icon Placeholder -->
       <div
         v-if="pageSettings.icon"
-        class="size-16 -mt-12 bg-white dark:bg-zinc-950 rounded-xl shadow-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 relative z-10"
+        class="size-16 bg-white dark:bg-zinc-950 rounded-xl shadow-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800"
       >
         <span class="text-3xl">{{ pageSettings.icon }}</span>
       </div>

@@ -1,10 +1,8 @@
 ﻿<script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import confetti from "canvas-confetti";
-import { format, formatDistanceToNow, isPast } from "date-fns";
 import TodoPageHeader from "~/components/todos/TodoPageHeader.vue";
 import TodoColumn from "~/components/todos/TodoColumn.vue";
-import CropperModal from "~/components/todos/CropperModal.vue";
 import type {
   Todo,
   TodoWeek,
@@ -25,19 +23,14 @@ const newColumnTaskTitle = ref("");
 // Page Settings
 const pageSettings = ref<PageSettings>({
   id: "",
-  cover: null,
   icon: null,
   title: "Weekly To-do List",
   description: null,
+  cover: null,
 });
+
 const editingTitle = ref(false);
 const editingDescription = ref(false);
-
-// Cropper
-const showCropperModal = ref(false);
-const selectedImage = ref<string | null>(null);
-const croppedImage = ref<Blob | null>(null);
-const uploadingCover = ref(false);
 
 // Kanban Columns
 const columns: Column[] = [
@@ -259,68 +252,6 @@ const handleTodoReorder = async (todos: Todo[]) => {
   }
 };
 
-// Cover Image Functions
-const handleCoverSelected = (file: File) => {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    selectedImage.value = e.target?.result as string;
-    showCropperModal.value = true;
-  };
-  reader.readAsDataURL(file);
-};
-
-const handleCrop = ({ canvas }: { canvas: HTMLCanvasElement }) => {
-  const targetWidth = 1248;
-  const targetHeight = 208;
-  const targetCanvas = document.createElement("canvas");
-  targetCanvas.width = targetWidth;
-  targetCanvas.height = targetHeight;
-
-  const ctx = targetCanvas.getContext("2d");
-  if (ctx) {
-    ctx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
-    targetCanvas.toBlob(
-      (blob: Blob | null) => {
-        if (blob) {
-          croppedImage.value = blob;
-        }
-      },
-      "image/jpeg",
-      0.9,
-    );
-  }
-};
-
-const uploadCroppedCover = async () => {
-  if (!croppedImage.value) return;
-  uploadingCover.value = true;
-  try {
-    const formData = new FormData();
-    formData.append("file", croppedImage.value, "cover.jpg");
-    const result = await api.upload<PageSettings>(
-      "/todos/settings/cover",
-      formData,
-    );
-    pageSettings.value = result;
-    showCropperModal.value = false;
-    selectedImage.value = null;
-    croppedImage.value = null;
-  } catch (e) {
-    console.error("Failed to upload cover:", e);
-  } finally {
-    uploadingCover.value = false;
-  }
-};
-
-const removeCover = async () => {
-  try {
-    await api.delete("/todos/settings/cover");
-    pageSettings.value.cover = null;
-  } catch (e) {
-    console.error("Failed to remove cover:", e);
-  }
-};
-
 const updateTitle = async () => {
   editingTitle.value = false;
   try {
@@ -388,7 +319,7 @@ onMounted(loadWeek);
     </template>
 
     <template #body>
-      <div class="h-full flex flex-col overflow-hidden">
+      <div class="h-full flex flex-col overflow-y-auto">
         <!-- Page Header -->
         <TodoPageHeader
           :editing-title="editingTitle"
@@ -400,8 +331,6 @@ onMounted(loadWeek);
           @update:description="pageSettings.description = $event"
           @save:title="updateTitle"
           @save:description="updateDescription"
-          @cover-selected="handleCoverSelected"
-          @remove-cover="removeCover"
         />
 
         <!-- Stats Bar -->
@@ -448,17 +377,4 @@ onMounted(loadWeek);
       </div>
     </template>
   </UDashboardPanel>
-  <!-- Cropper Modal -->
-  <CropperModal
-    :show="showCropperModal"
-    :selected-image="selectedImage"
-    :uploading="uploadingCover"
-    @close="
-      showCropperModal = false;
-      selectedImage = null;
-      croppedImage = null;
-    "
-    @crop="handleCrop"
-    @upload="uploadCroppedCover"
-  />
 </template>

@@ -81,6 +81,14 @@ const links = [
         open.value = false;
       },
     },
+    {
+      label: "Chatbot",
+      icon: "i-lucide-message-square",
+      to: "/chatbot",
+      onSelect: () => {
+        open.value = false;
+      },
+    },
   ],
   [
     {
