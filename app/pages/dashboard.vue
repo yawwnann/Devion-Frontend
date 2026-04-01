@@ -11,7 +11,8 @@ interface Page {
   id: string;
   title: string;
   slug: string;
-  isPublished: boolean;
+  status: "DRAFT" | "PRIVATE" | "PUBLISHED";
+  publishedAt?: string;
 }
 
 interface GithubRepo {
@@ -53,7 +54,9 @@ const { user } = useAuth();
 const pages = ref<Page[]>([]);
 const githubRepos = ref<GithubRepo[]>([]);
 const projects = ref<Project[]>([]);
+const publishedArticles = ref<Page[]>([]);
 const loading = ref(true);
+const articlesLoading = ref(true);
 
 // Animation states
 const showHeader = ref(false);
@@ -71,19 +74,26 @@ onMounted(async () => {
   }, 100);
 
   try {
-    const [pagesData, reposData, projectsData] = await Promise.all([
-      api.get<Page[]>("/documentation"),
-      api.get<GithubRepo[]>("/github/repos"),
-      api.get<Project[]>("/projects"),
-    ]);
+    const [pagesData, reposData, projectsData, articlesData] =
+      await Promise.all([
+        api.get<Page[]>("/documentation"),
+        api.get<GithubRepo[]>("/github/repos"),
+        api.get<Project[]>("/projects"),
+        api.get<Page[]>("/documentation/published"),
+      ]);
+
+    console.log("[Dashboard] Pages:", pagesData);
+    console.log("[Dashboard] Published articles:", articlesData);
 
     pages.value = pagesData;
     githubRepos.value = reposData;
     projects.value = projectsData;
+    publishedArticles.value = articlesData;
   } catch (error) {
     console.error("Failed to load dashboard data:", error);
   } finally {
     loading.value = false;
+    articlesLoading.value = false;
 
     // Staggered animations after loading
     setTimeout(() => {
@@ -172,6 +182,9 @@ onMounted(async () => {
             :github-repos="githubRepos"
             :show-lists="showLists"
           />
+
+          <!-- Articles -->
+          <ArticlesSection title="Latest Articles" :limit="3" />
         </template>
       </div>
     </template>

@@ -1,15 +1,63 @@
 <script setup lang="ts">
+import type { DropdownMenuItem } from '@nuxt/ui';
+
 interface Props {
   saving?: boolean;
-  isPublished?: boolean;
+  status?: 'DRAFT' | 'PRIVATE' | 'PUBLISHED';
   isEditing?: boolean;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
-defineEmits<{
-  (e: "togglePublish" | "save" | "toggleEdit"): void;
+const emit = defineEmits<{
+  (e: 'update:status', status: 'DRAFT' | 'PRIVATE' | 'PUBLISHED'): void;
+  (e: 'save'): void;
+  (e: 'toggleEdit'): void;
 }>();
+
+const statusConfig = {
+  DRAFT: { label: 'Draft', icon: 'i-lucide-file-pen', color: 'gray' as const },
+  PRIVATE: { label: 'Private', icon: 'i-lucide-lock', color: 'orange' as const },
+  PUBLISHED: { label: 'Published', icon: 'i-lucide-globe', color: 'emerald' as const },
+};
+
+const currentStatus = computed(() => props.status || 'DRAFT');
+const statusInfo = computed(() => statusConfig[currentStatus.value]);
+
+const statusItems = computed<DropdownMenuItem[][]>(() => [
+  [
+    {
+      label: 'Draft',
+      icon: 'i-lucide-file-pen',
+      type: 'checkbox',
+      checked: currentStatus.value === 'DRAFT',
+      onSelect: (e: Event) => {
+        e.preventDefault();
+        emit('update:status', 'DRAFT');
+      },
+    },
+    {
+      label: 'Private',
+      icon: 'i-lucide-lock',
+      type: 'checkbox',
+      checked: currentStatus.value === 'PRIVATE',
+      onSelect: (e: Event) => {
+        e.preventDefault();
+        emit('update:status', 'PRIVATE');
+      },
+    },
+    {
+      label: 'Published',
+      icon: 'i-lucide-globe',
+      type: 'checkbox',
+      checked: currentStatus.value === 'PUBLISHED',
+      onSelect: (e: Event) => {
+        e.preventDefault();
+        emit('update:status', 'PUBLISHED');
+      },
+    },
+  ],
+]);
 </script>
 
 <template>
@@ -81,16 +129,18 @@ defineEmits<{
 
         <div class="w-px h-5 bg-default" />
 
-        <!-- Publish Status -->
-        <UButton
-          :color="isPublished ? 'success' : 'neutral'"
-          :variant="isPublished ? 'soft' : 'solid'"
-          size="sm"
-          :icon="isPublished ? 'i-lucide-globe' : 'i-lucide-upload'"
-          @click="$emit('togglePublish')"
-        >
-          {{ isPublished ? "Dipublikasi" : "Publikasi" }}
-        </UButton>
+        <!-- Status Dropdown -->
+        <UDropdownMenu :items="statusItems">
+          <UButton
+            :color="statusInfo.color"
+            :variant="currentStatus === 'PUBLISHED' ? 'soft' : 'solid'"
+            size="sm"
+            :icon="statusInfo.icon"
+            trailing-icon="i-lucide-chevron-down"
+          >
+            {{ statusInfo.label }}
+          </UButton>
+        </UDropdownMenu>
       </div>
     </template>
   </UDashboardNavbar>

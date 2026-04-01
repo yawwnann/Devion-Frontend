@@ -2,9 +2,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const { token, refreshToken, user, fetchUser, refreshAccessToken } =
     useAuth();
 
-  // Public routes (landing page and auth pages)
+  // Public routes (landing page, auth pages, and articles)
   const publicRoutes = ["/", "/login", "/register", "/auth/callback"];
-  if (publicRoutes.includes(to.path)) {
+  const isArticlesRoute = to.path.startsWith("/articles");
+
+  if (publicRoutes.includes(to.path) || isArticlesRoute) {
     return;
   }
 

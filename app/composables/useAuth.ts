@@ -6,6 +6,7 @@ interface User {
   avatar: string | null;
   cover: string | null;
   hasPassword: boolean;
+  hasGoogleLinked: boolean;
   githubUsername: string | null;
   createdAt: string;
   updatedAt: string;
@@ -20,12 +21,18 @@ export const useAuth = () => {
   const isAuthenticated = computed(() => !!token.value && !!user.value);
 
   const fetchUser = async () => {
-    if (!token.value) return null;
+    console.log("🟡 [AUTH] fetchUser called, token exists:", !!token.value);
+    if (!token.value) {
+      console.log("🟡 [AUTH] No token, returning null");
+      return null;
+    }
     try {
+      console.log("🟡 [AUTH] Fetching user from /auth/me...");
       user.value = await api.get<User>("/auth/me");
+      console.log("🟡 [AUTH] User fetched successfully:", user.value?.email);
       return user.value;
     } catch (error) {
-      console.error("Failed to fetch user:", error);
+      console.error("🔴 [AUTH] Failed to fetch user:", error);
       // Don't clear token immediately, let the caller decide
       user.value = null;
       return null;
@@ -73,8 +80,12 @@ export const useAuth = () => {
   };
 
   const setTokens = (accessToken: string, refToken: string) => {
+    console.log("🟡 [AUTH] setTokens called");
+    console.log("🟡 [AUTH] Access token length:", accessToken?.length);
+    console.log("🟡 [AUTH] Refresh token length:", refToken?.length);
     token.value = accessToken;
     refreshToken.value = refToken;
+    console.log("🟡 [AUTH] Tokens set in cookies");
   };
 
   return {

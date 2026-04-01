@@ -14,6 +14,38 @@ const showConfirmPassword = ref(false);
 const agreeTerms = ref(false);
 const loading = ref(false);
 const error = ref("");
+const showWelcomeDialog = ref(true);
+
+const handleContinue = () => {
+  showWelcomeDialog.value = false;
+};
+
+const handleGoogleRegister = async () => {
+  try {
+    // Get Google OAuth URL from backend
+    const response = await api.get<{ url: string }>("/auth/google/url");
+    const googleUrl = response.url;
+
+    // Open Google OAuth in a popup window
+    const width = 500;
+    const height = 600;
+    const left = window.screen.width / 2 - width / 2;
+    const top = window.screen.height / 2 - height / 2;
+
+    const popup = window.open(
+      googleUrl,
+      "Google Register",
+      `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no`,
+    );
+
+    if (!popup || popup.closed || typeof popup.closed === "undefined") {
+      error.value = "Popup blocked. Please allow popups for this site.";
+    }
+  } catch (err) {
+    console.error("Failed to get Google OAuth URL:", err);
+    error.value = "Failed to initialize Google OAuth";
+  }
+};
 
 const handleRegister = async () => {
   error.value = "";
@@ -65,6 +97,27 @@ const handleRegister = async () => {
     loading.value = false;
   }
 };
+
+// Listen for OAuth popup message
+onMounted(() => {
+  window.addEventListener("message", async (event) => {
+    if (event.origin !== "http://localhost:5173") return;
+
+    const { type, accessToken, refreshToken } = event.data;
+
+    if (type === "GOOGLE_AUTH_SUCCESS" && accessToken && refreshToken) {
+      try {
+        setTokens(accessToken, refreshToken);
+        await nextTick();
+        await fetchUser();
+        navigateTo("/dashboard");
+      } catch (err) {
+        console.error("Failed to process Google auth:", err);
+        error.value = "Authentication failed";
+      }
+    }
+  });
+});
 </script>
 
 <template>
@@ -85,8 +138,9 @@ const handleRegister = async () => {
           </h1>
 
           <!-- Google Button -->
-          <a
-            :href="`${apiUrl}/auth/google`"
+          <button
+            type="button"
+            @click="handleGoogleRegister"
             class="flex items-center justify-center gap-3 w-full px-4 py-3 bg-white hover:bg-gray-100 text-black font-medium rounded-full transition-colors"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24">
@@ -108,7 +162,7 @@ const handleRegister = async () => {
               />
             </svg>
             Sign up with Google
-          </a>
+          </button>
 
           <!-- Divider -->
           <div class="flex items-center gap-4">

@@ -21,3 +21,65 @@
 .bg-gradient-radial {
   background: radial-gradient(circle, var(--tw-gradient-stops));
 }
+
+/* Custom Scrollbar Styles */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(63 63 70 / 0.5) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgb(63 63 70 / 0.5);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgb(63 63 70 / 0.7);
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: rgb(63 63 70 / 0.9);
+}
+
+/* Dark mode scrollbar */
+.dark * {
+  scrollbar-color: rgb(161 161 170 / 0.3) transparent;
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  background: rgb(161 161 170 / 0.3);
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: rgb(161 161 170 / 0.5);
+}
+
+.dark *::-webkit-scrollbar-thumb:active {
+  background: rgb(161 161 170 / 0.7);
+}
+
+/* Scrollbar for specific containers */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Highlight.js Dark Theme */
+@import "highlight.js/styles/github-dark.css";

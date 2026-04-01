@@ -4,6 +4,7 @@ import "vue-advanced-cropper/dist/style.css";
 
 const api = useApi();
 const { user, logout, fetchUser } = useAuth();
+const token = useCookie("auth_token");
 
 // Stats
 const stats = ref({ projects: 0, todos: 0, pages: 0 });
@@ -11,17 +12,58 @@ const loadingStats = ref(true);
 
 // Edit states
 const editingProfile = ref(false);
-const editingPassword = ref(false);
 const uploadingAvatar = ref(false);
 const uploadingCover = ref(false);
 
 // Image cropper
 const showAvatarCropperModal = ref(false);
 const showCoverCropperModal = ref(false);
+const showLogoutDialog = ref(false);
 const selectedImage = ref<string | null>(null);
 const croppedImage = ref<Blob | null>(null);
 const avatarInput = ref<HTMLInputElement | null>(null);
 const coverInput = ref<HTMLInputElement | null>(null);
+
+// Dropdown sections
+const openSection = ref<string | null>(null);
+const loadingSections = ref({
+  settings: false,
+  github: false,
+  security: false,
+  loginHistory: false,
+});
+
+// Section data
+const settingsData = ref<{
+  emailNotifications: boolean;
+  twoFactorEnabled: boolean;
+  language: string;
+  timezone: string;
+} | null>(null);
+
+const githubData = ref<{
+  connected: boolean;
+  username: string | null;
+  repos: any[];
+  lastSync: string | null;
+} | null>(null);
+
+const securityData = ref<{
+  passwordLastChanged: string | null;
+  activeSessions: number;
+  recoveryEmail: string | null;
+} | null>(null);
+
+const loginHistoryData = ref<{
+  logins: Array<{
+    id: string;
+    timestamp: string;
+    ip: string;
+    device: string;
+    location: string;
+    success: boolean;
+  }>;
+} | null>(null);
 
 // Forms
 const profileForm = ref({
@@ -30,18 +72,110 @@ const profileForm = ref({
   githubUsername: "",
 });
 
-const passwordForm = ref({
-  currentPassword: "",
-  newPassword: "",
-  confirmPassword: "",
-});
-
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString("en-US", {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
+};
+
+const toggleSection = async (section: string) => {
+  if (openSection.value === section) {
+    openSection.value = null;
+    return;
+  }
+  openSection.value = section;
+
+  // Fetch data for the section if not loaded yet
+  if (section === "settings" && !settingsData.value) {
+    await loadSettingsData();
+  } else if (section === "github" && !githubData.value) {
+    await loadGithubData();
+  } else if (section === "security" && !securityData.value) {
+    await loadSecurityData();
+  } else if (section === "loginHistory" && !loginHistoryData.value) {
+    await loadLoginHistoryData();
+  }
+};
+
+const loadSettingsData = async () => {
+  loadingSections.value.settings = true;
+  try {
+    // Mock data - replace with actual API call
+    settingsData.value = {
+      emailNotifications: true,
+      twoFactorEnabled: false,
+      language: "en",
+      timezone: "UTC",
+    };
+  } catch (e) {
+    console.error("Failed to load settings:", e);
+  } finally {
+    loadingSections.value.settings = false;
+  }
+};
+
+const loadGithubData = async () => {
+  loadingSections.value.github = true;
+  try {
+    const repos = await api.get("/github/repos");
+    githubData.value = {
+      connected: !!user.value?.githubUsername,
+      username: user.value?.githubUsername || null,
+      repos: Array.isArray(repos) ? repos : [],
+      lastSync: user.value?.updatedAt || null,
+    };
+  } catch (e) {
+    console.error("Failed to load github data:", e);
+    githubData.value = {
+      connected: false,
+      username: null,
+      repos: [],
+      lastSync: null,
+    };
+  } finally {
+    loadingSections.value.github = false;
+  }
+};
+
+const loadSecurityData = async () => {
+  loadingSections.value.security = true;
+  try {
+    // Mock data - replace with actual API call
+    securityData.value = {
+      passwordLastChanged: user.value?.createdAt || null,
+      activeSessions: 1,
+      recoveryEmail: null,
+    };
+  } catch (e) {
+    console.error("Failed to load security data:", e);
+  } finally {
+    loadingSections.value.security = false;
+  }
+};
+
+const loadLoginHistoryData = async () => {
+  loadingSections.value.loginHistory = true;
+  try {
+    // Mock data - replace with actual API call
+    loginHistoryData.value = {
+      logins: [
+        {
+          id: "1",
+          timestamp: new Date().toISOString(),
+          ip: "192.168.1.1",
+          device: "Chrome on Windows",
+          location: "Jakarta, Indonesia",
+          success: true,
+        },
+      ],
+    };
+  } catch (e) {
+    console.error("Failed to load login history:", e);
+  } finally {
+    loadingSections.value.loginHistory = false;
+  }
 };
 
 const loadStats = async () => {
@@ -74,28 +208,6 @@ const saveProfile = async () => {
     editingProfile.value = false;
   } catch (e) {
     console.error("Failed to update profile:", e);
-  }
-};
-
-const changePassword = async () => {
-  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
-    alert("Passwords do not match");
-    return;
-  }
-
-  try {
-    await api.post("/auth/change-password", {
-      currentPassword: passwordForm.value.currentPassword,
-      newPassword: passwordForm.value.newPassword,
-    });
-    editingPassword.value = false;
-    passwordForm.value = {
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    };
-  } catch (e) {
-    console.error("Failed to change password:", e);
   }
 };
 
@@ -185,9 +297,15 @@ const removeCover = async () => {
 };
 
 onMounted(async () => {
-  if (!user.value) {
-    await fetchUser();
-  }
+  console.log(
+    "📄 Profile mounted, user exists:",
+    !!user.value,
+    "token exists:",
+    !!token.value,
+  );
+  // Always fetch user data when profile page loads
+  console.log("🔄 Fetching user data...");
+  await fetchUser();
   await loadStats();
 });
 </script>
@@ -430,107 +548,385 @@ onMounted(async () => {
             </UCard>
           </div>
 
-          <!-- Security Section -->
-          <UCard>
-            <template #header>
-              <div class="flex items-center gap-2">
-                <UIcon name="i-lucide-shield-check" class="size-5" />
-                <h3 class="font-semibold">Security</h3>
-              </div>
-            </template>
-
-            <div v-if="!editingPassword" class="space-y-4">
-              <div
-                class="flex items-center justify-between p-4 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800"
+          <!-- Dropdown Sections -->
+          <div class="space-y-2">
+            <!-- Settings Section -->
+            <UCard class="overflow-hidden">
+              <button
+                class="w-full flex items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors"
+                @click="toggleSection('settings')"
               >
-                <div>
-                  <p class="font-medium text-sm">Password</p>
-                  <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {{
-                      user?.hasPassword
-                        ? "Last changed recently"
-                        : "OAuth login - password not available"
-                    }}
-                  </p>
+                <div class="flex items-center gap-3">
+                  <div
+                    class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center"
+                  >
+                    <UIcon
+                      name="i-lucide-settings"
+                      class="size-5 text-blue-600 dark:text-blue-400"
+                    />
+                  </div>
+                  <div class="text-left">
+                    <p class="font-medium text-sm">Settings</p>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                      Manage your preferences
+                    </p>
+                  </div>
                 </div>
-                <UButton
-                  v-if="user?.hasPassword"
-                  variant="outline"
-                  size="sm"
-                  icon="i-lucide-key"
-                  @click="editingPassword = true"
-                >
-                  Change
-                </UButton>
-              </div>
+                <UIcon
+                  name="i-lucide-chevron-down"
+                  class="size-5 text-zinc-400 transition-transform duration-200"
+                  :class="{ 'rotate-180': openSection === 'settings' }"
+                />
+              </button>
 
+              <!-- Dropdown Content -->
               <div
-                class="flex items-center justify-between p-4 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800"
+                v-show="openSection === 'settings'"
+                class="dropdown-content border-t border-zinc-200 dark:border-zinc-800"
+                :class="{ 'dropdown-open': openSection === 'settings' }"
               >
-                <div>
-                  <p class="font-medium text-sm text-red-600">Log Out</p>
-                  <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    Sign out from your account
-                  </p>
+                <div class="dropdown-inner">
+                  <div class="p-4">
+                    <div v-if="loadingSections.settings">
+                      <USkeleton class="h-20" />
+                    </div>
+                    <div v-else-if="settingsData" class="space-y-4">
+                      <div
+                        class="flex items-center justify-between p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50"
+                      >
+                        <div>
+                          <p class="text-sm font-medium">Email Notifications</p>
+                          <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                            Receive email updates
+                          </p>
+                        </div>
+                        <UToggle v-model="settingsData.emailNotifications" />
+                      </div>
+                      <div
+                        class="flex items-center justify-between p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50"
+                      >
+                        <div>
+                          <p class="text-sm font-medium">Two-Factor Auth</p>
+                          <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                            Extra security layer
+                          </p>
+                        </div>
+                        <UToggle v-model="settingsData.twoFactorEnabled" />
+                      </div>
+                      <div class="grid grid-cols-2 gap-3">
+                        <div>
+                          <label
+                            class="text-xs text-zinc-500 dark:text-zinc-400"
+                            >Language</label
+                          >
+                          <USelect
+                            v-model="settingsData.language"
+                            :options="[
+                              { label: 'English', value: 'en' },
+                              { label: 'Indonesia', value: 'id' },
+                            ]"
+                            class="w-full mt-1"
+                          />
+                        </div>
+                        <div>
+                          <label
+                            class="text-xs text-zinc-500 dark:text-zinc-400"
+                            >Timezone</label
+                          >
+                          <USelect
+                            v-model="settingsData.timezone"
+                            :options="[
+                              { label: 'UTC', value: 'UTC' },
+                              { label: 'WIB (UTC+7)', value: 'Asia/Jakarta' },
+                            ]"
+                            class="w-full mt-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <UButton
-                  variant="ghost"
-                  color="error"
-                  size="sm"
-                  icon="i-lucide-log-out"
-                  @click="logout"
-                >
-                  Log Out
-                </UButton>
               </div>
-            </div>
+            </UCard>
 
-            <!-- Change Password Form -->
-            <div v-else>
-              <div class="flex justify-between mb-4">
-                <UInput
-                  v-model="passwordForm.currentPassword"
-                  type="password"
-                  placeholder="Current password"
-                  label="Current Password"
-                  size="lg"
+            <!-- GitHub Integration Section -->
+            <UCard class="overflow-hidden">
+              <button
+                class="w-full flex items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors"
+                @click="toggleSection('github')"
+              >
+                <div class="flex items-center gap-3">
+                  <div
+                    class="w-10 h-10 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"
+                  >
+                    <UIcon
+                      name="i-lucide-github"
+                      class="size-5 text-zinc-700 dark:text-zinc-300"
+                    />
+                  </div>
+                  <div class="text-left">
+                    <p class="font-medium text-sm">GitHub Integration</p>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                      Connect your GitHub account
+                    </p>
+                  </div>
+                </div>
+                <UIcon
+                  name="i-lucide-chevron-down"
+                  class="size-5 text-zinc-400 transition-transform duration-200"
+                  :class="{ 'rotate-180': openSection === 'github' }"
                 />
-                <UInput
-                  v-model="passwordForm.newPassword"
-                  type="password"
-                  placeholder="New password"
-                  label="New Password"
-                  size="lg"
-                />
-                <UInput
-                  v-model="passwordForm.confirmPassword"
-                  type="password"
-                  placeholder="Confirm new password"
-                  label="Confirm Password"
-                  size="lg"
-                />
+              </button>
+
+              <!-- Dropdown Content -->
+              <div
+                v-show="openSection === 'github'"
+                class="dropdown-content border-t border-zinc-200 dark:border-zinc-800"
+                :class="{ 'dropdown-open': openSection === 'github' }"
+              >
+                <div class="dropdown-inner">
+                  <div class="p-4">
+                    <div v-if="loadingSections.github">
+                      <USkeleton class="h-20" />
+                    </div>
+                    <div v-else-if="githubData" class="space-y-4">
+                      <div
+                        v-if="githubData.connected"
+                        class="flex items-center gap-3 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                      >
+                        <UIcon
+                          name="i-lucide-circle-check"
+                          class="size-5 text-green-600 dark:text-green-400"
+                        />
+                        <div>
+                          <p
+                            class="text-sm font-medium text-green-800 dark:text-green-200"
+                          >
+                            GitHub Connected
+                          </p>
+                          <p class="text-xs text-green-600 dark:text-green-400">
+                            @{{ githubData.username }}
+                          </p>
+                        </div>
+                      </div>
+                      <div
+                        v-else
+                        class="flex items-center justify-between p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50"
+                      >
+                        <p class="text-sm text-zinc-600 dark:text-zinc-300">
+                          Not connected to GitHub
+                        </p>
+                        <UButton size="sm" icon="i-lucide-github">
+                          Connect
+                        </UButton>
+                      </div>
+                      <div v-if="githubData.repos.length > 0">
+                        <p class="text-xs font-medium text-zinc-500 mb-2">
+                          Repositories ({{ githubData.repos.length }})
+                        </p>
+                        <div class="space-y-2">
+                          <div
+                            v-for="repo in githubData.repos.slice(0, 3)"
+                            :key="repo.id"
+                            class="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 text-sm"
+                          >
+                            {{ repo.name }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div class="flex gap-2 pt-2">
-                <UButton size="sm" @click="changePassword">
-                  Update Password
-                </UButton>
-                <UButton
-                  variant="ghost"
-                  size="sm"
-                  @click="
-                    editingPassword = false;
-                    passwordForm = {
-                      currentPassword: '',
-                      newPassword: '',
-                      confirmPassword: '',
-                    };
-                  "
-                >
-                  Cancel
-                </UButton>
+            </UCard>
+
+            <!-- Security Section -->
+            <UCard class="overflow-hidden">
+              <button
+                class="w-full flex items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors"
+                @click="toggleSection('security')"
+              >
+                <div class="flex items-center gap-3">
+                  <div
+                    class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center"
+                  >
+                    <UIcon
+                      name="i-lucide-shield-check"
+                      class="size-5 text-emerald-600 dark:text-emerald-400"
+                    />
+                  </div>
+                  <div class="text-left">
+                    <p class="font-medium text-sm">Security</p>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                      Password and sessions
+                    </p>
+                  </div>
+                </div>
+                <UIcon
+                  name="i-lucide-chevron-down"
+                  class="size-5 text-zinc-400 transition-transform duration-200"
+                  :class="{ 'rotate-180': openSection === 'security' }"
+                />
+              </button>
+
+              <!-- Dropdown Content -->
+              <div
+                v-show="openSection === 'security'"
+                class="dropdown-content border-t border-zinc-200 dark:border-zinc-800"
+                :class="{ 'dropdown-open': openSection === 'security' }"
+              >
+                <div class="dropdown-inner">
+                  <div class="p-4">
+                    <div v-if="loadingSections.security">
+                      <USkeleton class="h-20" />
+                    </div>
+                    <div v-else-if="securityData" class="space-y-3">
+                      <div
+                        class="flex items-center justify-between p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50"
+                      >
+                        <div>
+                          <p class="text-sm font-medium">Password</p>
+                          <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                            {{
+                              user?.hasPassword
+                                ? "Last changed recently"
+                                : "OAuth login - password not available"
+                            }}
+                          </p>
+                        </div>
+                        <UButton
+                          v-if="user?.hasPassword"
+                          variant="outline"
+                          size="sm"
+                          icon="i-lucide-key"
+                        >
+                          Change
+                        </UButton>
+                      </div>
+                      <div
+                        class="flex items-center justify-between p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50"
+                      >
+                        <div>
+                          <p class="text-sm font-medium">Active Sessions</p>
+                          <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                            Devices currently logged in
+                          </p>
+                        </div>
+                        <UBadge :label="String(securityData.activeSessions)" />
+                      </div>
+                      <div
+                        class="flex items-center justify-between p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50"
+                      >
+                        <div>
+                          <p class="text-sm font-medium text-red-600">
+                            Log Out
+                          </p>
+                          <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                            Sign out from all devices
+                          </p>
+                        </div>
+                        <UButton
+                          variant="ghost"
+                          color="error"
+                          size="sm"
+                          icon="i-lucide-log-out"
+                          @click="showLogoutDialog = true"
+                        >
+                          Log Out
+                        </UButton>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </UCard>
+            </UCard>
+
+            <!-- Login History Section -->
+            <UCard class="overflow-hidden">
+              <button
+                class="w-full flex items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors"
+                @click="toggleSection('loginHistory')"
+              >
+                <div class="flex items-center gap-3">
+                  <div
+                    class="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center"
+                  >
+                    <UIcon
+                      name="i-lucide-clock"
+                      class="size-5 text-purple-600 dark:text-purple-400"
+                    />
+                  </div>
+                  <div class="text-left">
+                    <p class="font-medium text-sm">Login History</p>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                      Recent login activity
+                    </p>
+                  </div>
+                </div>
+                <UIcon
+                  name="i-lucide-chevron-down"
+                  class="size-5 text-zinc-400 transition-transform duration-200"
+                  :class="{ 'rotate-180': openSection === 'loginHistory' }"
+                />
+              </button>
+
+              <!-- Dropdown Content -->
+              <div
+                v-show="openSection === 'loginHistory'"
+                class="dropdown-content border-t border-zinc-200 dark:border-zinc-800"
+                :class="{ 'dropdown-open': openSection === 'loginHistory' }"
+              >
+                <div class="dropdown-inner">
+                  <div class="p-4">
+                    <div v-if="loadingSections.loginHistory">
+                      <USkeleton class="h-20" />
+                    </div>
+                    <div v-else-if="loginHistoryData" class="space-y-3">
+                      <div
+                        v-for="login in loginHistoryData.logins"
+                        :key="login.id"
+                        class="flex items-start gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900/50"
+                      >
+                        <div
+                          :class="[
+                            'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
+                            login.success
+                              ? 'bg-green-100 dark:bg-green-900/20'
+                              : 'bg-red-100 dark:bg-red-900/20',
+                          ]"
+                        >
+                          <UIcon
+                            :name="
+                              login.success ? 'i-lucide-check' : 'i-lucide-x'
+                            "
+                            :class="[
+                              'size-4',
+                              login.success
+                                ? 'text-green-600 dark:text-green-400'
+                                : 'text-red-600 dark:text-red-400',
+                            ]"
+                          />
+                        </div>
+                        <div class="flex-1 min-w-0">
+                          <p class="text-sm font-medium truncate">
+                            {{ login.device }}
+                          </p>
+                          <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                            {{ login.location }} • {{ login.ip }}
+                          </p>
+                          <p
+                            class="text-xs text-zinc-400 dark:text-zinc-500 mt-1"
+                          >
+                            {{ formatDate(login.timestamp) }}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </UCard>
+          </div>
         </div>
       </div>
     </template>
@@ -587,4 +983,82 @@ onMounted(async () => {
       </UCard>
     </template>
   </UModal>
+
+  <!-- Logout Confirmation Dialog -->
+  <UModal v-model:open="showLogoutDialog">
+    <template #content>
+      <UCard>
+        <template #header>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <!-- Icon -->
+              <div
+                class="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center"
+              >
+                <UIcon
+                  name="i-lucide-log-out"
+                  class="size-5 text-red-600 dark:text-red-400"
+                />
+              </div>
+
+              <!-- Title -->
+              <h3 class="text-lg font-semibold text-zinc-900 dark:text-white">
+                Log out
+              </h3>
+            </div>
+
+            <!-- Close Button -->
+            <UButton
+              icon="i-lucide-x"
+              variant="ghost"
+              color="neutral"
+              size="sm"
+              @click="showLogoutDialog = false"
+            />
+          </div>
+        </template>
+
+        <!-- Content -->
+        <div class="py-4">
+          <p class="text-sm text-zinc-600 dark:text-zinc-400">
+            Are you sure you want to log out? You will need to sign in again to
+            access your account and data.
+          </p>
+        </div>
+
+        <template #footer>
+          <div class="flex gap-3 justify-end">
+            <UButton
+              variant="outline"
+              color="neutral"
+              @click="showLogoutDialog = false"
+            >
+              Cancel
+            </UButton>
+            <UButton color="error" icon="i-lucide-log-out" @click="logout">
+              Log out
+            </UButton>
+          </div>
+        </template>
+      </UCard>
+    </template>
+  </UModal>
 </template>
+
+<style scoped>
+/* Smooth dropdown animation using CSS Grid */
+.dropdown-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.dropdown-content.dropdown-open {
+  grid-template-rows: 1fr;
+}
+
+.dropdown-inner {
+  min-height: 0;
+}
+</style>

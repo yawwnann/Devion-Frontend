@@ -7,11 +7,58 @@ interface Page {
   id: string;
   title: string;
   icon: string | null;
+  status: "DRAFT" | "PRIVATE" | "PUBLISHED";
+  publishedAt?: string;
   updatedAt: string;
 }
 
 const pages = ref<Page[]>([]);
 const loading = ref(true);
+const activeStatus = ref<"all" | "DRAFT" | "PRIVATE" | "PUBLISHED">("all");
+
+const statusTabs = [
+  { label: "All", value: "all", icon: "i-lucide-list" },
+  { label: "Draft", value: "DRAFT", icon: "i-lucide-file-pen" },
+  { label: "Private", value: "PRIVATE", icon: "i-lucide-lock" },
+  { label: "Published", value: "PUBLISHED", icon: "i-lucide-globe" },
+];
+
+const getStatusColor = (status: string): "neutral" | "warning" | "success" => {
+  const colors: Record<string, "neutral" | "warning" | "success"> = {
+    DRAFT: "neutral",
+    PRIVATE: "warning",
+    PUBLISHED: "success",
+  };
+  return colors[status] || "neutral";
+};
+
+const fetchPages = async (status?: string) => {
+  loading.value = true;
+  try {
+    console.log("🔵 Fetching pages with status:", status || "all");
+    if (status && status !== "all") {
+      const response = await api.get<Page[]>(
+        `/documentation/by-status?status=${status}`,
+      );
+      console.log("🟢 Fetched by status, count:", response.length);
+      pages.value = response;
+    } else {
+      const response = await api.get<Page[]>("/documentation");
+      console.log("🟢 Fetched all, count:", response.length);
+      pages.value = response;
+    }
+  } catch (e) {
+    console.error("Failed to load pages:", e);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Watch for status changes
+watch(activeStatus, (newStatus) => {
+  console.log("🔵 Status changed to:", newStatus);
+  fetchPages(newStatus === "all" ? undefined : newStatus);
+});
 
 const formatDate = (date: string) => {
   const d = new Date(date);
@@ -37,7 +84,7 @@ const createPage = async () => {
 
 onMounted(async () => {
   try {
-    pages.value = await api.get<Page[]>("/documentation");
+    await fetchPages();
   } catch (e) {
     console.error("Failed to load pages:", e);
   } finally {
@@ -63,6 +110,11 @@ onMounted(async () => {
 
     <template #body>
       <div class="p-6">
+        <!-- Status Filter Tabs -->
+        <div class="mb-6">
+          <UTabs v-model="activeStatus" :items="statusTabs" />
+        </div>
+
         <!-- Loading -->
         <div v-if="loading" class="grid gap-3">
           <USkeleton v-for="i in 3" :key="i" class="h-20" />
@@ -98,9 +150,21 @@ onMounted(async () => {
                   class="size-6 text-primary"
                 />
                 <div class="flex-1">
-                  <p class="font-medium">{{ page.title || "Untitled" }}</p>
+                  <div class="flex items-center gap-2 mb-1">
+                    <p class="font-medium">{{ page.title || "Untitled" }}</p>
+                    <UBadge
+                      :color="getStatusColor(page.status)"
+                      variant="soft"
+                      size="xs"
+                    >
+                      {{ page.status }}
+                    </UBadge>
+                  </div>
                   <p class="text-sm text-muted">
                     Updated {{ formatDate(page.updatedAt) }}
+                    <span v-if="page.publishedAt" class="ml-2">
+                      • Published {{ formatDate(page.publishedAt) }}
+                    </span>
                   </p>
                 </div>
                 <UIcon

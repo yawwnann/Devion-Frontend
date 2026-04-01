@@ -16,9 +16,13 @@ defineProps<Props>();
 </script>
 
 <template>
-  <div class="h-full border-r border-default bg-elevated/30 flex flex-col">
+  <div
+    class="h-full border-r border-default bg-elevated/30 flex flex-col overflow-hidden"
+  >
     <!-- Header -->
-    <div class="px-5 py-4 border-b border-default/50 bg-elevated/50">
+    <div
+      class="px-5 py-4 border-b border-default/50 bg-elevated/50 flex-shrink-0"
+    >
       <div class="flex items-center gap-2">
         <UIcon name="i-lucide-book-open" class="size-4 text-primary" />
         <h2 class="text-sm font-semibold text-foreground">Dokumentasi</h2>
@@ -27,7 +31,7 @@ defineProps<Props>();
     </div>
 
     <!-- Document List -->
-    <div class="flex-1 overflow-y-auto">
+    <div class="flex-1 overflow-y-auto min-h-0">
       <!-- Empty State -->
       <div v-if="pages.length === 0" class="p-6 text-center">
         <div

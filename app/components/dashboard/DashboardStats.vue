@@ -2,14 +2,14 @@
 import { computed } from "vue";
 
 const props = defineProps<{
-  pages: { id: string; isPublished: boolean }[];
+  pages: { id: string; status: string }[];
   githubRepos: { id: string; stars: number }[];
   projects: { id: string; status: string }[];
   showStats: boolean;
 }>();
 
 const publishedPages = computed(() => {
-  return props.pages.filter((p) => p.isPublished).length;
+  return props.pages.filter((p) => p.status === "PUBLISHED").length;
 });
 
 const totalStars = computed(() => {

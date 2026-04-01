@@ -253,6 +253,20 @@ onMounted(() => {
       </div>
     </section>
 
+    <!-- Articles Section -->
+    <section id="articles" class="px-6 py-20 border-t border-gray-800/50">
+      <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl md:text-4xl font-bold mb-4">Latest Articles</h2>
+          <p class="text-gray-400 max-w-2xl mx-auto">
+            Explore guides, tutorials, and best practices from our community.
+          </p>
+        </div>
+
+        <ArticlesSection :limit="6" />
+      </div>
+    </section>
+
     <!-- CTA Section -->
     <section id="about" class="px-6 py-20 border-t border-gray-800/50">
       <div class="max-w-4xl mx-auto text-center">

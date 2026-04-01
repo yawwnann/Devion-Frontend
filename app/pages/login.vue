@@ -11,6 +11,36 @@ const showPassword = ref(false);
 const loading = ref(false);
 const error = ref("");
 
+const handleGoogleLogin = async () => {
+  console.log("🔵 [LOGIN] Google login button clicked");
+
+  try {
+    // Get Google OAuth URL from backend
+    const response = await api.get<{ url: string }>("/auth/google/url");
+    const googleUrl = response.url;
+    console.log("🔵 [LOGIN] Google OAuth URL:", googleUrl);
+
+    // Open Google OAuth in a popup window
+    const width = 500;
+    const height = 600;
+    const left = window.screen.width / 2 - width / 2;
+    const top = window.screen.height / 2 - height / 2;
+
+    const popup = window.open(
+      googleUrl,
+      "Google Login",
+      `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no`,
+    );
+
+    if (!popup || popup.closed || typeof popup.closed === "undefined") {
+      error.value = "Popup blocked. Please allow popups for this site.";
+    }
+  } catch (err) {
+    console.error("🔴 [LOGIN] Error getting Google OAuth URL:", err);
+    error.value = "Failed to initialize Google OAuth";
+  }
+};
+
 const handleLogin = async () => {
   if (!email.value || !password.value) {
     error.value = "Please fill in all fields";
@@ -45,10 +75,9 @@ const handleLogin = async () => {
   <div class="min-h-screen flex bg-black">
     <!-- Left Panel - Form -->
     <div class="w-full lg:w-1/2 flex flex-col min-h-screen">
-      <!-- Header -->
-      <div class="p-6">
+      <NuxtLink to="/" class="p-6">
         <img src="/logo.png" alt="Devion" class="h-8 w-auto" />
-      </div>
+      </NuxtLink>
 
       <!-- Form Container -->
       <div class="flex-1 flex items-center justify-center px-6">

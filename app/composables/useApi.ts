@@ -1,3 +1,5 @@
+import { mockApi } from "~/utils/mockApi";
+
 const API_URL = "http://localhost:3000/api";
 
 export const useApi = () => {
@@ -30,7 +32,6 @@ export const useApi = () => {
   ): Promise<T> => {
     // Mock mode
     if (useMock) {
-      const mockApi = (await import("~/utils/mockApi")).mockApi;
       console.log("🎭 Mock API:");
 
       // Parse endpoint and method
@@ -38,6 +39,7 @@ export const useApi = () => {
       const parts = endpoint.split("/").filter(Boolean);
 
       // Auth endpoints
+
       if (parts[0] === "auth") {
         if (parts[1] === "login" && method === "POST") {
           const body = JSON.parse(options.body as string);
@@ -53,6 +55,9 @@ export const useApi = () => {
         }
         if (parts[1] === "me") {
           return mockApi.getMe() as Promise<T>;
+        }
+        if (parts[1] === "statistics" && method === "GET") {
+          return mockApi.getStatistics() as Promise<T>;
         }
       }
 
@@ -72,6 +77,13 @@ export const useApi = () => {
         }
         if (parts[1] && method === "DELETE") {
           return mockApi.deletePage(parts[1]) as Promise<T>;
+        }
+      }
+
+      // Documentation endpoints (alias for pages)
+      if (parts[0] === "documentation") {
+        if (parts[1] === "published" && method === "GET") {
+          return mockApi.getPublishedPages() as Promise<T>;
         }
       }
 
@@ -234,6 +246,7 @@ export const useApi = () => {
   };
 
   return {
+    baseURL: API_URL,
     get: <T>(endpoint: string) => fetchApi<T>(endpoint),
     post: <T>(endpoint: string, body?: unknown) =>
       fetchApi<T>(endpoint, { method: "POST", body: JSON.stringify(body) }),
