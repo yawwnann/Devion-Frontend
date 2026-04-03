@@ -84,11 +84,11 @@ onMounted(() => {
 <template>
   <UDashboardPanel id="calendar">
     <template #header>
-      <UDashboardNavbar title="Calendar">
+      <AppNavbar title="Calendar">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

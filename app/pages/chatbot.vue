@@ -59,7 +59,7 @@ const handleSuggestedQuestion = (question: string) => {
 <template>
   <UDashboardPanel id="chatbot">
     <template #header>
-      <UDashboardNavbar title="Chatbot Assistant">
+      <AppNavbar title="Chatbot Assistant">
         <template #leading>
           <UDashboardSidebarCollapse
             v-model="isSidebarOpen"
@@ -76,7 +76,7 @@ const handleSuggestedQuestion = (question: string) => {
             Clear History
           </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

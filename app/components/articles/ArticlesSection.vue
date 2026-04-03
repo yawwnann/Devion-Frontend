@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ArticleList from "./ArticleList.vue";
+
 interface Article {
   id: string;
   title: string;
@@ -11,12 +13,18 @@ interface Article {
   };
 }
 
-const props = defineProps<{
-  title?: string;
-  showViewAll?: boolean;
-  limit?: number;
-}>();
+const props = withDefaults(
+  defineProps<{
+    title?: string;
+    showViewAll?: boolean;
+    limit?: number;
+  }>(),
+  {
+    title: "Latest Articles",
+  },
+);
 
+const { t } = useI18n();
 const api = useApi();
 const articles = ref<Article[]>([]);
 const loading = ref(true);
@@ -46,11 +54,13 @@ watch(
 </script>
 
 <template>
-  <section class="space-y-6">
+  <section class="space-y-6 p-6 bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800">
     <!-- Header -->
-    <div v-if="title" class="flex items-center justify-between">
-      <h2 class="text-xl font-bold">
-        {{ title }}
+    <div class="flex items-center justify-between">
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+        {{
+          title === "Latest Articles" ? t("dashboard.latestArticles") : title
+        }}
       </h2>
     </div>
 
@@ -64,10 +74,10 @@ watch(
     >
       <NuxtLink
         to="/articles"
-        class="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white font-medium rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/30"
+        class="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-600/30"
       >
         <UIcon name="i-lucide-book-open" class="size-5" />
-        Lihat Artikel Lainnya
+        {{ t("articles.viewMore") }}
         <UIcon name="i-lucide-arrow-right" class="size-5" />
       </NuxtLink>
     </div>

@@ -3,20 +3,40 @@ const toast = useToast();
 const api = useApi();
 const { token, user, fetchUser } = useAuth();
 const colorMode = useColorMode();
+const { locale, setLocale, locales } = useI18n();
+const { t } = useI18n();
+const { updatePreferences } = usePreferences();
 
 // Dropdown state
 const openSection = ref<string | null>(null);
 const loadingSections = ref({
   appearance: false,
+  language: false,
   preferences: false,
   github: false,
   accounts: false,
   security: false,
+  history: false,
 });
 
 // Appearance
 const appearance = ref(colorMode.preference);
 const appearanceLoaded = ref(false);
+
+// Language
+const currentLocale = ref(locale.value);
+const languageLoaded = ref(false);
+
+const changeLanguage = async (langCode: string) => {
+  await setLocale(langCode as "id" | "en");
+  currentLocale.value = langCode as "id" | "en";
+  await updatePreferences({ language: langCode as "id" | "en" });
+  toast.add({
+    title: t("common.success"),
+    description: "Language changed successfully",
+    color: "success",
+  });
+};
 
 // GitHub
 const githubToken = ref("");
@@ -75,7 +95,6 @@ const getDeviceIcon = (device: string) => {
 };
 
 const formatLocation = (login: LoginHistory) => {
-  // Check if it's localhost
   if (
     login.ipAddress === "::1" ||
     login.ipAddress === "127.0.0.1" ||
@@ -85,7 +104,6 @@ const formatLocation = (login: LoginHistory) => {
     return "Local Development";
   }
 
-  // Format normal location
   if (login.city && login.country) {
     return `${login.city}, ${login.country}`;
   }
@@ -101,7 +119,6 @@ const formatIpAddress = (ip: string) => {
   if (ip.includes("::ffff:127.0.0.1") || ip.includes("::ffff:localhost")) {
     return "localhost (IPv4)";
   }
-  // Remove IPv6 prefix for localhost
   if (ip.startsWith("::ffff:") && ip.includes("127.0.0.1")) {
     return "localhost (IPv4)";
   }
@@ -115,18 +132,22 @@ const toggleSection = async (section: string) => {
   }
   openSection.value = section;
 
-  // Load section data if not loaded yet
   if (section === "appearance" && !appearanceLoaded.value) {
     loadingSections.value.appearance = true;
-    // Appearance doesn't need API call, just mark as loaded
     appearanceLoaded.value = true;
     loadingSections.value.appearance = false;
+  } else if (section === "language" && !languageLoaded.value) {
+    loadingSections.value.language = true;
+    languageLoaded.value = true;
+    loadingSections.value.language = false;
   } else if (section === "github" && !githubLoaded.value) {
     await loadGithubData();
-  } else if (section === "security" && !loginHistoryLoaded.value) {
-    loadingSections.value.security = true;
+  } else if (section === "security") {
+    // Security currently has no dynamic data to fetch
+  } else if (section === "history" && !loginHistoryLoaded.value) {
+    loadingSections.value.history = true;
     await fetchLoginHistory();
-    loadingSections.value.security = false;
+    loadingSections.value.history = false;
   }
 };
 
@@ -145,14 +166,12 @@ const loadGithubData = async () => {
 const linkGoogleAccount = async () => {
   linkingGoogle.value = true;
   try {
-    // Get OAuth URL from backend
     const response = await api.get<{ url: string }>("/auth/google/link");
-    // Redirect to Google OAuth
     window.location.href = response.url;
   } catch (error: unknown) {
     const err = error as { message?: string };
     toast.add({
-      title: "Error",
+      title: t("common.error"),
       description: err.message || "Failed to link Google account",
       color: "error",
     });
@@ -163,7 +182,7 @@ const linkGoogleAccount = async () => {
 const unlinkGoogleAccount = async () => {
   if (!user.value?.hasPassword) {
     toast.add({
-      title: "Error",
+      title: t("common.error"),
       description: "Please set a password before unlinking Google account",
       color: "error",
     });
@@ -175,14 +194,14 @@ const unlinkGoogleAccount = async () => {
     await api.post("/auth/unlink-google");
     await fetchUser();
     toast.add({
-      title: "Success",
+      title: t("common.success"),
       description: "Google account unlinked successfully",
       color: "success",
     });
   } catch (error: unknown) {
     const err = error as { message?: string };
     toast.add({
-      title: "Error",
+      title: t("common.error"),
       description: err.message || "Failed to unlink Google account",
       color: "error",
     });
@@ -205,7 +224,7 @@ const changingPassword = ref(false);
 const changePassword = async () => {
   if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
     toast.add({
-      title: "Error",
+      title: t("common.error"),
       description: "Passwords do not match",
       color: "error",
     });
@@ -214,7 +233,7 @@ const changePassword = async () => {
 
   if (passwordForm.value.newPassword.length < 6) {
     toast.add({
-      title: "Error",
+      title: t("common.error"),
       description: "Password must be at least 6 characters",
       color: "error",
     });
@@ -229,7 +248,7 @@ const changePassword = async () => {
     });
 
     toast.add({
-      title: "Success",
+      title: t("common.success"),
       description: "Password changed successfully",
       color: "success",
     });
@@ -242,7 +261,7 @@ const changePassword = async () => {
   } catch (error: unknown) {
     const err = error as { message?: string };
     toast.add({
-      title: "Error",
+      title: t("common.error"),
       description: err.message || "Failed to change password",
       color: "error",
     });
@@ -251,14 +270,15 @@ const changePassword = async () => {
   }
 };
 
-watch(appearance, (value) => {
+watch(appearance, async (value) => {
   colorMode.preference = value;
+  await updatePreferences({ theme: value });
 });
 
 const themes = [
-  { value: "system", label: "System", icon: "i-lucide-monitor" },
-  { value: "light", label: "Light", icon: "i-lucide-sun" },
-  { value: "dark", label: "Dark", icon: "i-lucide-moon" },
+  { value: "system", label: t("settings.system"), icon: "i-lucide-monitor" },
+  { value: "light", label: t("settings.light"), icon: "i-lucide-sun" },
+  { value: "dark", label: t("settings.dark"), icon: "i-lucide-moon" },
 ];
 
 const fetchTokenStatus = async () => {
@@ -273,7 +293,7 @@ const fetchTokenStatus = async () => {
 const saveGithubConfig = async () => {
   if (!githubUsername.value && !githubToken.value) {
     toast.add({
-      title: "Error",
+      title: t("common.error"),
       description: "Please provide GitHub username or token",
       color: "error",
     });
@@ -282,21 +302,17 @@ const saveGithubConfig = async () => {
 
   savingGithub.value = true;
   try {
-    // Set username if provided
     if (githubUsername.value) {
       await api.post("/github/username", { username: githubUsername.value });
     }
 
-    // Set token if provided
     if (githubToken.value) {
       await api.post("/github/token", { token: githubToken.value });
       hasGithubToken.value = true;
     }
 
-    // Refresh user data to get updated githubUsername
     await fetchUser();
 
-    // Sync repos after configuration
     try {
       await api.post("/github/sync");
     } catch (syncError) {
@@ -304,7 +320,7 @@ const saveGithubConfig = async () => {
     }
 
     toast.add({
-      title: "Success",
+      title: t("common.success"),
       description: "GitHub configuration saved and repos synced",
       color: "success",
     });
@@ -314,7 +330,7 @@ const saveGithubConfig = async () => {
   } catch (error: unknown) {
     const err = error as { message?: string };
     toast.add({
-      title: "Error",
+      title: t("common.error"),
       description: err.message || "Failed to save GitHub configuration",
       color: "error",
     });
@@ -324,25 +340,21 @@ const saveGithubConfig = async () => {
 };
 
 onMounted(() => {
-  // Check for Google linking result
   const route = useRoute();
   if (route.query.linked === "success") {
     toast.add({
-      title: "Success",
+      title: t("common.success"),
       description: "Google account linked successfully",
       color: "success",
     });
-    // Refresh user data
     fetchUser();
-    // Clean URL
     navigateTo("/settings", { replace: true });
   } else if (route.query.linked === "error") {
     toast.add({
-      title: "Error",
+      title: t("common.error"),
       description: "Failed to link Google account",
       color: "error",
     });
-    // Clean URL
     navigateTo("/settings", { replace: true });
   }
 });
@@ -351,18 +363,28 @@ onMounted(() => {
 <template>
   <UDashboardPanel id="settings">
     <template #header>
-      <UDashboardNavbar title="Settings">
+      <AppNavbar :title="t('settings.title')">
         <template #logo>
           <UIcon name="i-lucide-settings" class="size-5" />
         </template>
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>
-      <div class="p-6 space-y-3">
+      <div class="p-6 space-y-4">
+        <!-- Page Header -->
+        <div class="mb-6">
+          <h1 class="text-2xl font-bold text-zinc-900 dark:text-white">
+            {{ t("settings.title") }}
+          </h1>
+          <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+            Manage your account settings and preferences
+          </p>
+        </div>
+
         <!-- Appearance Section -->
         <UCard class="overflow-hidden">
           <button
@@ -379,9 +401,9 @@ onMounted(() => {
                 />
               </div>
               <div class="text-left">
-                <p class="font-medium text-sm">Appearance</p>
+                <p class="font-medium">{{ t("settings.appearance") }}</p>
                 <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                  Theme and display preferences
+                  {{ t("settings.theme") }}
                 </p>
               </div>
             </div>
@@ -392,48 +414,114 @@ onMounted(() => {
             />
           </button>
 
-          <!-- Dropdown Content -->
           <div
             v-show="openSection === 'appearance'"
-            class="dropdown-content border-t border-zinc-200 dark:border-zinc-800"
-            :class="{ 'dropdown-open': openSection === 'appearance' }"
+            class="border-t border-zinc-200 dark:border-zinc-800"
           >
-            <div class="dropdown-inner">
-              <div class="p-4 space-y-4">
-                <div v-if="loadingSections.appearance">
-                  <USkeleton class="h-20" />
-                </div>
-                <div v-else>
-                  <div>
-                    <label class="text-sm font-medium mb-3 block">Theme</label>
-                    <div class="grid grid-cols-3 gap-3">
-                      <button
-                        v-for="theme in themes"
-                        :key="theme.value"
-                        class="flex flex-col items-center gap-2 p-4 rounded-lg border transition-all"
-                        :class="
-                          appearance === theme.value
-                            ? 'border-primary bg-primary/5'
-                            : 'border-default hover:border-primary/50'
-                        "
-                        @click="appearance = theme.value"
-                      >
-                        <UIcon :name="theme.icon" class="size-6" />
-                        <span class="text-sm font-medium">{{
-                          theme.label
-                        }}</span>
-                      </button>
-                    </div>
+            <div class="p-4 space-y-4">
+              <div v-if="loadingSections.appearance">
+                <USkeleton class="h-20" />
+              </div>
+              <div v-else>
+                <div>
+                  <label class="text-sm font-medium mb-3 block">{{
+                    t("settings.theme")
+                  }}</label>
+                  <div class="grid grid-cols-3 gap-3">
+                    <button
+                      v-for="theme in themes"
+                      :key="theme.value"
+                      class="flex flex-col items-center gap-2 p-4 rounded-lg border transition-all"
+                      :class="
+                        appearance === theme.value
+                          ? 'border-primary bg-primary/5'
+                          : 'border-zinc-200 dark:border-zinc-700 hover:border-primary/50'
+                      "
+                      @click="appearance = theme.value"
+                    >
+                      <UIcon :name="theme.icon" class="size-6" />
+                      <span class="text-sm font-medium">{{ theme.label }}</span>
+                    </button>
                   </div>
+                </div>
 
-                  <div class="pt-4 border-t border-default">
-                    <p class="text-sm text-muted">
-                      Choose how Devion looks to you. Select a single theme, or
-                      sync with your system and automatically switch between day
-                      and night themes.
-                    </p>
-                  </div>
+                <div class="pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                  <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                    {{ t("settings.themeDescription") }}
+                  </p>
                 </div>
+              </div>
+            </div>
+          </div>
+        </UCard>
+
+        <!-- Language Section -->
+        <UCard class="overflow-hidden">
+          <button
+            class="w-full flex items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors"
+            @click="toggleSection('language')"
+          >
+            <div class="flex items-center gap-3">
+              <div
+                class="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/20 flex items-center justify-center"
+              >
+                <UIcon
+                  name="i-lucide-languages"
+                  class="size-5 text-green-600 dark:text-green-400"
+                />
+              </div>
+              <div class="text-left">
+                <p class="font-medium">{{ t("settings.language") }}</p>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                  Select your preferred language
+                </p>
+              </div>
+            </div>
+            <UIcon
+              name="i-lucide-chevron-down"
+              class="size-5 text-zinc-400 transition-transform duration-200"
+              :class="{ 'rotate-180': openSection === 'language' }"
+            />
+          </button>
+
+          <div
+            v-show="openSection === 'language'"
+            class="border-t border-zinc-200 dark:border-zinc-800"
+          >
+            <div class="p-4 space-y-4">
+              <div v-if="loadingSections.language">
+                <USkeleton class="h-20" />
+              </div>
+              <div v-else class="grid grid-cols-2 gap-3">
+                <button
+                  v-for="availableLocale in locales"
+                  :key="availableLocale.code"
+                  class="flex flex-col items-center gap-2 p-4 rounded-lg border transition-all"
+                  :class="
+                    currentLocale === availableLocale.code
+                      ? 'border-primary bg-primary/5'
+                      : 'border-zinc-200 dark:border-zinc-700 hover:border-primary/50'
+                  "
+                  @click="changeLanguage(availableLocale.code)"
+                >
+                  <UIcon
+                    :name="
+                      availableLocale.code === 'id'
+                        ? 'i-lucide-flag'
+                        : 'i-lucide-globe'
+                    "
+                    class="size-6"
+                  />
+                  <span class="text-sm font-medium">{{
+                    availableLocale.name
+                  }}</span>
+                </button>
+              </div>
+
+              <div class="pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                  Choose your preferred language for the Devion interface.
+                </p>
               </div>
             </div>
           </div>
@@ -455,7 +543,7 @@ onMounted(() => {
                 />
               </div>
               <div class="text-left">
-                <p class="font-medium text-sm">Preferences</p>
+                <p class="font-medium">{{ t("settings.preferences") }}</p>
                 <p class="text-xs text-zinc-500 dark:text-zinc-400">
                   App behavior and animations
                 </p>
@@ -468,33 +556,33 @@ onMounted(() => {
             />
           </button>
 
-          <!-- Dropdown Content -->
           <div
             v-show="openSection === 'preferences'"
-            class="dropdown-content border-t border-zinc-200 dark:border-zinc-800"
-            :class="{ 'dropdown-open': openSection === 'preferences' }"
+            class="border-t border-zinc-200 dark:border-zinc-800"
           >
-            <div class="dropdown-inner">
-              <div class="p-4 space-y-4">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="font-medium">Show sidebar by default</p>
-                    <p class="text-sm text-muted">
-                      Keep the sidebar open when you visit the app
-                    </p>
-                  </div>
-                  <UToggle />
+            <div class="p-4 space-y-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="font-medium">
+                    {{ t("settings.showSidebarByDefault") }}
+                  </p>
+                  <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                    {{ t("settings.keepSidebarOpen") }}
+                  </p>
                 </div>
+                <UToggle />
+              </div>
 
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="font-medium">Enable animations</p>
-                    <p class="text-sm text-muted">
-                      Use animations and transitions throughout the app
-                    </p>
-                  </div>
-                  <UToggle :model-value="true" />
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="font-medium">
+                    {{ t("settings.enableAnimations") }}
+                  </p>
+                  <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                    {{ t("settings.useAnimationsThroughout") }}
+                  </p>
                 </div>
+                <UToggle :model-value="true" />
               </div>
             </div>
           </div>
@@ -516,7 +604,7 @@ onMounted(() => {
                 />
               </div>
               <div class="text-left">
-                <p class="font-medium text-sm">GitHub Integration</p>
+                <p class="font-medium">{{ t("settings.githubIntegration") }}</p>
                 <p class="text-xs text-zinc-500 dark:text-zinc-400">
                   Connect your GitHub account
                 </p>
@@ -529,80 +617,79 @@ onMounted(() => {
             />
           </button>
 
-          <!-- Dropdown Content -->
           <div
             v-show="openSection === 'github'"
-            class="dropdown-content border-t border-zinc-200 dark:border-zinc-800"
-            :class="{ 'dropdown-open': openSection === 'github' }"
+            class="border-t border-zinc-200 dark:border-zinc-800"
           >
-            <div class="dropdown-inner">
-              <div class="p-4">
-                <div v-if="loadingSections.github">
-                  <USkeleton class="h-32" />
+            <div class="p-4">
+              <div v-if="loadingSections.github">
+                <USkeleton class="h-32" />
+              </div>
+              <div v-else class="space-y-4">
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <p class="font-medium">
+                      {{ t("settings.githubUsername") }}
+                    </p>
+                    <UBadge v-if="user?.githubUsername" color="success">
+                      <UIcon name="i-lucide-check" class="size-3 mr-1" />
+                      @{{ user.githubUsername }}
+                    </UBadge>
+                    <UBadge v-else color="neutral">Not set</UBadge>
+                  </div>
+                  <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
+                    {{ t("settings.githubUsernameDescription") }}
+                  </p>
+                  <UInput
+                    v-model="githubUsername"
+                    :placeholder="t('settings.githubUsernamePlaceholder')"
+                    class="w-full"
+                    icon="i-lucide-github"
+                  />
                 </div>
-                <div v-else class="space-y-4">
-                  <!-- GitHub Username -->
-                  <div>
-                    <div class="flex items-center justify-between mb-2">
-                      <p class="font-medium">GitHub Username</p>
-                      <UBadge v-if="user?.githubUsername" color="success">
-                        <UIcon name="i-lucide-check" class="size-3 mr-1" />
-                        @{{ user.githubUsername }}
-                      </UBadge>
-                      <UBadge v-else color="neutral">Not set</UBadge>
-                    </div>
-                    <p class="text-sm text-muted mb-3">
-                      Your GitHub username for repository integration
-                    </p>
-                    <UInput
-                      v-model="githubUsername"
-                      placeholder="your-github-username"
-                      class="w-full"
-                      icon="i-lucide-github"
-                    />
-                  </div>
 
-                  <!-- GitHub Token -->
-                  <div>
-                    <div class="flex items-center justify-between mb-2">
-                      <p class="font-medium">Personal Access Token</p>
-                      <UBadge v-if="hasGithubToken" color="success">
-                        <UIcon name="i-lucide-check" class="size-3 mr-1" />
-                        Connected
-                      </UBadge>
-                      <UBadge v-else color="neutral">Not set</UBadge>
-                    </div>
-                    <p class="text-sm text-muted mb-3">
-                      Required for Code Review Center. Generate a token at
-                      <a
-                        href="https://github.com/settings/tokens/new"
-                        target="_blank"
-                        class="text-primary underline"
-                      >
-                        GitHub Settings
-                      </a>
-                      with
-                      <code class="text-xs bg-muted px-1 rounded">repo</code>
-                      scope.
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <p class="font-medium">
+                      {{ t("settings.personalAccessToken") }}
                     </p>
-                    <UInput
-                      v-model="githubToken"
-                      type="password"
-                      class="w-full"
-                      placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                    />
+                    <UBadge v-if="hasGithubToken" color="success">
+                      <UIcon name="i-lucide-check" class="size-3 mr-1" />
+                      Connected
+                    </UBadge>
+                    <UBadge v-else color="neutral">Not set</UBadge>
                   </div>
-
-                  <!-- Save Button -->
-                  <div class="flex justify-end pt-2">
-                    <UButton
-                      :loading="savingGithub"
-                      @click="saveGithubConfig"
-                      :disabled="!githubUsername && !githubToken"
+                  <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
+                    {{ t("settings.personalAccessTokenDescription") }}
+                    <a
+                      href="https://github.com/settings/tokens/new"
+                      target="_blank"
+                      class="text-primary underline"
                     >
-                      Save GitHub Configuration
-                    </UButton>
-                  </div>
+                      {{ t("settings.githubSettings") }}
+                    </a>
+                    {{ t("settings.withScope") }}
+                    <code
+                      class="text-xs bg-zinc-100 dark:bg-zinc-800 px-1 rounded"
+                      >repo</code
+                    >
+                  </p>
+                  <UInput
+                    v-model="githubToken"
+                    type="password"
+                    class="w-full"
+                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                  />
+                </div>
+
+                <div class="flex justify-end pt-2">
+                  <UButton
+                    :loading="savingGithub"
+                    :disabled="!githubUsername && !githubToken"
+                    @click="saveGithubConfig"
+                  >
+                    {{ t("settings.saveGithubConfig") }}
+                  </UButton>
                 </div>
               </div>
             </div>
@@ -625,7 +712,7 @@ onMounted(() => {
                 />
               </div>
               <div class="text-left">
-                <p class="font-medium text-sm">Connected Accounts</p>
+                <p class="font-medium">{{ t("settings.connectedAccounts") }}</p>
                 <p class="text-xs text-zinc-500 dark:text-zinc-400">
                   Link or unlink your accounts
                 </p>
@@ -638,82 +725,73 @@ onMounted(() => {
             />
           </button>
 
-          <!-- Dropdown Content -->
           <div
             v-show="openSection === 'accounts'"
-            class="dropdown-content border-t border-zinc-200 dark:border-zinc-800"
-            :class="{ 'dropdown-open': openSection === 'accounts' }"
+            class="border-t border-zinc-200 dark:border-zinc-800"
           >
-            <div class="dropdown-inner">
-              <div class="p-4 space-y-4">
-                <!-- Google Account -->
-                <div
-                  class="flex items-center justify-between p-4 border border-default rounded-lg"
-                >
-                  <div class="flex items-center gap-3">
-                    <div class="p-2 bg-red-500/10 rounded-lg">
-                      <UIcon
-                        name="i-lucide-globe"
-                        class="size-6 text-red-500"
-                      />
-                    </div>
-                    <div>
-                      <p class="font-medium">Google Account</p>
-                      <p class="text-sm text-muted">
-                        {{
-                          user?.hasGoogleLinked ? "Connected" : "Not connected"
-                        }}
-                      </p>
-                    </div>
+            <div class="p-4 space-y-4">
+              <div
+                class="flex items-center justify-between p-4 border border-zinc-200 dark:border-zinc-700 rounded-lg"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="p-2 bg-red-500/10 rounded-lg">
+                    <UIcon name="i-lucide-globe" class="size-6 text-red-500" />
                   </div>
-
-                  <div v-if="user?.hasGoogleLinked">
-                    <UButton
-                      color="error"
-                      variant="outline"
-                      size="sm"
-                      :loading="unlinkingGoogle"
-                      @click="unlinkGoogleAccount"
-                      :disabled="!user?.hasPassword"
-                    >
-                      <UIcon name="i-lucide-unlink" class="size-4 mr-1" />
-                      Unlink
-                    </UButton>
-                  </div>
-                  <div v-else>
-                    <UButton
-                      color="primary"
-                      variant="outline"
-                      size="sm"
-                      :loading="linkingGoogle"
-                      @click="linkGoogleAccount"
-                    >
-                      <UIcon name="i-lucide-link" class="size-4 mr-1" />
-                      Link Account
-                    </UButton>
+                  <div>
+                    <p class="font-medium">{{ t("settings.googleAccount") }}</p>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                      {{
+                        user?.hasGoogleLinked
+                          ? t("settings.connected")
+                          : t("settings.notConnected")
+                      }}
+                    </p>
                   </div>
                 </div>
 
-                <!-- Info Message -->
-                <div
-                  v-if="user?.hasGoogleLinked && !user?.hasPassword"
-                  class="p-3 bg-warning/10 border border-warning/20 rounded-lg"
-                >
-                  <div class="flex gap-2">
-                    <UIcon
-                      name="i-lucide-alert-triangle"
-                      class="size-5 text-warning flex-shrink-0 mt-0.5"
-                    />
-                    <div class="text-sm">
-                      <p class="font-medium text-warning mb-1">
-                        Set a password to unlink
-                      </p>
-                      <p class="text-muted">
-                        You need to set a password before you can unlink your
-                        Google account. This ensures you can still access your
-                        account.
-                      </p>
-                    </div>
+                <div v-if="user?.hasGoogleLinked">
+                  <UButton
+                    color="error"
+                    variant="outline"
+                    size="sm"
+                    :loading="unlinkingGoogle"
+                    :disabled="!user?.hasPassword"
+                    @click="unlinkGoogleAccount"
+                  >
+                    <UIcon name="i-lucide-unlink" class="size-4 mr-1" />
+                    {{ t("settings.unlink") }}
+                  </UButton>
+                </div>
+                <div v-else>
+                  <UButton
+                    color="primary"
+                    variant="outline"
+                    size="sm"
+                    :loading="linkingGoogle"
+                    @click="linkGoogleAccount"
+                  >
+                    <UIcon name="i-lucide-link" class="size-4 mr-1" />
+                    {{ t("settings.linkAccount") }}
+                  </UButton>
+                </div>
+              </div>
+
+              <div
+                v-if="user?.hasGoogleLinked && !user?.hasPassword"
+                class="p-3 bg-warning/10 border border-warning/20 rounded-lg"
+              >
+                <div class="flex gap-2">
+                  <UIcon
+                    name="i-lucide-alert-triangle"
+                    class="size-5 text-warning shrink-0 mt-0.5"
+                  />
+                  <div class="text-sm">
+                    <p class="font-medium text-warning mb-1">
+                      {{ t("settings.setPasswordToUnlink") }}
+                    </p>
+                    <p class="text-zinc-500 dark:text-zinc-400">
+                      {{ t("settings.needPasswordToUnlink") }}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -737,9 +815,9 @@ onMounted(() => {
                 />
               </div>
               <div class="text-left">
-                <p class="font-medium text-sm">Security</p>
+                <p class="font-medium">{{ t("settings.security") }}</p>
                 <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                  Password and login history
+                  {{ t("settings.changePassword") }}
                 </p>
               </div>
             </div>
@@ -750,218 +828,191 @@ onMounted(() => {
             />
           </button>
 
-          <!-- Dropdown Content -->
           <div
             v-show="openSection === 'security'"
-            class="dropdown-content border-t border-zinc-200 dark:border-zinc-800"
-            :class="{ 'dropdown-open': openSection === 'security' }"
+            class="border-t border-zinc-200 dark:border-zinc-800"
           >
-            <div class="dropdown-inner">
-              <div class="p-4 space-y-6">
-                <!-- Change Password Form -->
+            <div class="p-4 space-y-4">
+              <div class="space-y-3">
                 <div>
-                  <h3 class="font-medium mb-3">Change Password</h3>
-                  <div class="space-y-3">
-                    <!-- Current Password -->
-                    <div>
-                      <label class="text-sm font-medium mb-2 block"
-                        >Current Password</label
-                      >
-                      <UInput
-                        v-model="passwordForm.currentPassword"
-                        :type="showCurrentPassword ? 'text' : 'password'"
-                        placeholder="Enter current password"
-                        class="w-full"
-                      >
-                        <template #trailing>
-                          <UButton
-                            variant="link"
-                            size="sm"
-                            :icon="
-                              showCurrentPassword
-                                ? 'i-lucide-eye-off'
-                                : 'i-lucide-eye'
-                            "
-                            @click="showCurrentPassword = !showCurrentPassword"
-                          />
-                        </template>
-                      </UInput>
-                    </div>
-
-                    <!-- New Password -->
-                    <div>
-                      <label class="text-sm font-medium mb-2 block"
-                        >New Password</label
-                      >
-                      <UInput
-                        v-model="passwordForm.newPassword"
-                        :type="showNewPassword ? 'text' : 'password'"
-                        placeholder="Enter new password"
-                        class="w-full"
-                      >
-                        <template #trailing>
-                          <UButton
-                            variant="link"
-                            size="sm"
-                            :icon="
-                              showNewPassword
-                                ? 'i-lucide-eye-off'
-                                : 'i-lucide-eye'
-                            "
-                            @click="showNewPassword = !showNewPassword"
-                          />
-                        </template>
-                      </UInput>
-                    </div>
-
-                    <!-- Confirm Password -->
-                    <div>
-                      <label class="text-sm font-medium mb-2 block"
-                        >Confirm New Password</label
-                      >
-                      <UInput
-                        v-model="passwordForm.confirmPassword"
-                        :type="showConfirmPassword ? 'text' : 'password'"
-                        placeholder="Confirm new password"
-                        class="w-full"
-                      >
-                        <template #trailing>
-                          <UButton
-                            variant="link"
-                            size="sm"
-                            :icon="
-                              showConfirmPassword
-                                ? 'i-lucide-eye-off'
-                                : 'i-lucide-eye'
-                            "
-                            @click="showConfirmPassword = !showConfirmPassword"
-                          />
-                        </template>
-                      </UInput>
-                    </div>
-
-                    <!-- Save Button -->
-                    <div class="flex justify-end pt-2">
-                      <UButton
-                        :loading="changingPassword"
-                        @click="changePassword"
-                        :disabled="
-                          !passwordForm.currentPassword ||
-                          !passwordForm.newPassword
+                  <label class="text-sm font-medium mb-2 block">{{
+                    t("settings.currentPassword")
+                  }}</label>
+                  <div class="relative">
+                    <UInput
+                      v-model="passwordForm.currentPassword"
+                      :type="showCurrentPassword ? 'text' : 'password'"
+                      :placeholder="t('settings.enterCurrentPassword')"
+                      class="pr-10"
+                    />
+                    <button
+                      type="button"
+                      class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                      @click="showCurrentPassword = !showCurrentPassword"
+                    >
+                      <UIcon
+                        :name="
+                          showCurrentPassword
+                            ? 'i-lucide-eye-off'
+                            : 'i-lucide-eye'
                         "
-                      >
-                        Update Password
-                      </UButton>
-                    </div>
+                        class="size-4"
+                      />
+                    </button>
                   </div>
                 </div>
 
-                <!-- Login History -->
-                <div class="border-t border-default pt-4">
-                  <h3 class="font-medium mb-3">Login History</h3>
-                  <div class="space-y-3">
-                    <!-- Loading State -->
-                    <div v-if="loadingSections.security" class="space-y-3">
-                      <USkeleton v-for="i in 3" :key="i" class="h-16" />
-                    </div>
-
-                    <!-- Empty State -->
-                    <div
-                      v-else-if="loginHistory.length === 0"
-                      class="text-center py-8"
+                <div>
+                  <label class="text-sm font-medium mb-2 block">{{
+                    t("settings.newPassword")
+                  }}</label>
+                  <div class="relative">
+                    <UInput
+                      v-model="passwordForm.newPassword"
+                      :type="showNewPassword ? 'text' : 'password'"
+                      :placeholder="t('settings.enterNewPassword')"
+                      class="pr-10"
+                    />
+                    <button
+                      type="button"
+                      class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                      @click="showNewPassword = !showNewPassword"
                     >
                       <UIcon
-                        name="i-lucide-history"
-                        class="size-12 text-muted mx-auto mb-3"
+                        :name="
+                          showNewPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'
+                        "
+                        class="size-4"
                       />
-                      <p class="text-muted">No login history available</p>
-                    </div>
-
-                    <!-- History List -->
-                    <div v-else class="space-y-3">
-                      <div
-                        v-for="login in loginHistory"
-                        :key="login.id"
-                        class="flex items-start gap-4 p-3 rounded-lg border border-default hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-                      >
-                        <!-- Device Icon -->
-                        <div
-                          class="flex-shrink-0 size-10 rounded-lg flex items-center justify-center"
-                          :class="
-                            login.isSuccess
-                              ? 'bg-success/10 text-success'
-                              : 'bg-error/10 text-error'
-                          "
-                        >
-                          <UIcon
-                            :name="getDeviceIcon(login.device)"
-                            class="size-5"
-                          />
-                        </div>
-
-                        <!-- Login Details -->
-                        <div class="flex-1 min-w-0">
-                          <div class="flex items-center gap-2 mb-1">
-                            <p class="font-medium text-sm">
-                              {{ login.browser }} on {{ login.os }}
-                            </p>
-                            <UBadge
-                              :color="login.isSuccess ? 'success' : 'error'"
-                              size="xs"
-                            >
-                              {{ login.isSuccess ? "Success" : "Failed" }}
-                            </UBadge>
-                          </div>
-
-                          <div class="text-xs text-muted space-y-1">
-                            <div class="flex items-center gap-1">
-                              <UIcon name="i-lucide-map-pin" class="size-3" />
-                              <span>{{ formatLocation(login) }}</span>
-                            </div>
-                            <div class="flex items-center gap-1">
-                              <UIcon name="i-lucide-globe" class="size-3" />
-                              <span>{{
-                                formatIpAddress(login.ipAddress)
-                              }}</span>
-                            </div>
-                            <div class="flex items-center gap-1">
-                              <UIcon name="i-lucide-clock" class="size-3" />
-                              <span>{{
-                                formatLoginDate(login.createdAt)
-                              }}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    </button>
                   </div>
+                </div>
+
+                <div>
+                  <label class="text-sm font-medium mb-2 block">{{
+                    t("settings.confirmPassword")
+                  }}</label>
+                  <UInput
+                    v-model="passwordForm.confirmPassword"
+                    type="password"
+                    :placeholder="t('settings.confirmPassword')"
+                  />
+                </div>
+
+                <div class="flex justify-end pt-2">
+                  <UButton
+                    color="primary"
+                    :loading="changingPassword"
+                    :disabled="
+                      !passwordForm.currentPassword ||
+                      !passwordForm.newPassword ||
+                      !passwordForm.confirmPassword
+                    "
+                    @click="changePassword"
+                  >
+                    {{ t("settings.updatePassword") }}
+                  </UButton>
                 </div>
               </div>
             </div>
           </div>
         </UCard>
 
-        <!-- About Section -->
-        <UCard>
-          <template #header>
-            <h2 class="text-lg font-semibold flex items-center gap-2">
-              <UIcon name="i-lucide-info" class="size-5" />
-              About
-            </h2>
-          </template>
+        <!-- Login History Section -->
+        <UCard class="overflow-hidden">
+          <button
+            class="w-full flex items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors"
+            @click="toggleSection('history')"
+          >
+            <div class="flex items-center gap-3">
+              <div
+                class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/20 flex items-center justify-center"
+              >
+                <UIcon
+                  name="i-lucide-clock"
+                  class="size-5 text-amber-600 dark:text-amber-400"
+                />
+              </div>
+              <div class="text-left">
+                <p class="font-medium">{{ t("settings.loginHistory") }}</p>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                  Recent login activity
+                </p>
+              </div>
+            </div>
+            <UIcon
+              name="i-lucide-chevron-down"
+              class="size-5 text-zinc-400 transition-transform duration-200"
+              :class="{ 'rotate-180': openSection === 'history' }"
+            />
+          </button>
 
-          <div class="space-y-3">
-            <div class="flex justify-between">
-              <span class="text-muted">Version</span>
-              <span class="font-medium">1.0.0</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-muted">Built with</span>
-              <span class="font-medium">Nuxt 4 + NestJS</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-muted">License</span>
-              <span class="font-medium">MIT</span>
+          <div
+            v-show="openSection === 'history'"
+            class="border-t border-zinc-200 dark:border-zinc-800"
+          >
+            <div class="p-4">
+              <div v-if="loadingSections.history">
+                <USkeleton class="h-32" />
+              </div>
+              <div v-else-if="loginHistory.length === 0">
+                <p
+                  class="text-sm text-zinc-500 dark:text-zinc-400 text-center py-4"
+                >
+                  No login history available
+                </p>
+              </div>
+              <div v-else class="space-y-3">
+                <div
+                  v-for="login in loginHistory"
+                  :key="login.id"
+                  class="flex items-start justify-between p-3 border border-zinc-200 dark:border-zinc-700 rounded-lg"
+                >
+                  <div class="flex items-start gap-3">
+                    <div
+                      class="p-2 rounded-lg"
+                      :class="
+                        login.isSuccess
+                          ? 'bg-green-100 dark:bg-green-900/20'
+                          : 'bg-red-100 dark:bg-red-900/20'
+                      "
+                    >
+                      <UIcon
+                        :name="getDeviceIcon(login.device)"
+                        class="size-5"
+                        :class="
+                          login.isSuccess
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-red-600 dark:text-red-400'
+                        "
+                      />
+                    </div>
+                    <div>
+                      <p class="font-medium text-sm">
+                        {{ login.browser }} on {{ login.os }}
+                      </p>
+                      <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                        {{ formatLocation(login) }} •
+                        {{ formatIpAddress(login.ipAddress) }}
+                      </p>
+                      <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
+                        {{ formatLoginDate(login.createdAt) }}
+                      </p>
+                    </div>
+                  </div>
+                  <UBadge
+                    :color="login.isSuccess ? 'success' : 'error'"
+                    variant="subtle"
+                    size="xs"
+                  >
+                    {{
+                      login.isSuccess
+                        ? t("settings.success")
+                        : t("settings.failed")
+                    }}
+                  </UBadge>
+                </div>
+              </div>
             </div>
           </div>
         </UCard>
@@ -971,19 +1022,17 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Smooth dropdown animation using CSS Grid */
 .dropdown-content {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 0;
   overflow: hidden;
+  transition: max-height 0.3s ease;
 }
 
-.dropdown-content.dropdown-open {
-  grid-template-rows: 1fr;
+.dropdown-open {
+  max-height: 1000px;
 }
 
 .dropdown-inner {
-  min-height: 0;
+  background-color: inherit;
 }
 </style>

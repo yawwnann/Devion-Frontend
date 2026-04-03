@@ -1,22 +1,66 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from "@nuxt/ui";
+import { useNotifications } from "~/composables/useNotifications";
+import NotificationToast from "~/components/notifications/NotificationToast.vue";
+import NotificationPanel from "~/components/notifications/NotificationPanel.vue";
+
+const { t } = useI18n();
+const { setLocale } = useI18n();
+const colorMode = useColorMode();
+const { fetchPreferences, preferences } = usePreferences();
 
 const open = ref(false);
+const showNotificationsPanel = ref(false);
+const { unreadCount } = useNotifications();
 
-const links = [
+onMounted(async () => {
+  const data = await fetchPreferences();
+  if (data) {
+    if (data.language) {
+      setLocale(data.language);
+    }
+    if (data.theme) {
+      colorMode.preference = data.theme;
+    }
+  }
+});
+
+const links = computed<NavigationMenuItem[][]>(() => [
   [
     {
-      label: "Dashboard",
+      label: t("sidebar.dashboard"),
       icon: "i-lucide-layout-dashboard",
       to: "/dashboard",
       onSelect: () => {
         open.value = false;
       },
     },
+    {
+      label: t("sidebar.notifications"),
+      icon: "i-lucide-bell",
+      to: "#",
+      badge:
+        unreadCount.value > 0
+          ? {
+              label: unreadCount.value > 99 ? "99+" : String(unreadCount.value),
+              color: "error" as const,
+              size: "xs" as const,
+            }
+          : undefined,
+      onSelect: () => {
+        console.log("[Notifications] Button clicked, opening panel...");
+        open.value = false;
+        showNotificationsPanel.value = true;
+        console.log(
+          "[Notifications] Panel state:",
+          showNotificationsPanel.value,
+        );
+      },
+    },
   ],
   [
     {
-      label: "Documentation",
+      label: t("sidebar.documentation"),
       icon: "i-lucide-file-text",
       to: "/documentation",
       onSelect: () => {
@@ -24,7 +68,7 @@ const links = [
       },
     },
     {
-      label: "Projects",
+      label: t("sidebar.projects"),
       icon: "i-lucide-folder-kanban",
       to: "/projects",
       onSelect: () => {
@@ -32,7 +76,7 @@ const links = [
       },
     },
     {
-      label: "Todos",
+      label: t("sidebar.todos"),
       icon: "i-lucide-check-square",
       to: "/todos",
       onSelect: () => {
@@ -40,7 +84,7 @@ const links = [
       },
     },
     {
-      label: "Calendar",
+      label: t("sidebar.calendar"),
       icon: "i-lucide-calendar",
       to: "/calendar",
       onSelect: () => {
@@ -50,7 +94,7 @@ const links = [
   ],
   [
     {
-      label: "GitHub",
+      label: t("sidebar.github"),
       icon: "i-lucide-github",
       to: "/github",
       onSelect: () => {
@@ -58,7 +102,7 @@ const links = [
       },
     },
     {
-      label: "Contributions",
+      label: t("sidebar.contributions"),
       icon: "i-lucide-flame",
       to: "/contributions",
       onSelect: () => {
@@ -66,7 +110,7 @@ const links = [
       },
     },
     {
-      label: "Actions",
+      label: t("sidebar.actions"),
       icon: "i-lucide-play-circle",
       to: "/actions",
       onSelect: () => {
@@ -74,15 +118,17 @@ const links = [
       },
     },
     {
-      label: "Code Review",
+      label: t("sidebar.codeReview"),
       icon: "i-lucide-git-pull-request",
       to: "/reviews",
       onSelect: () => {
         open.value = false;
       },
     },
+  ],
+  [
     {
-      label: "Chatbot",
+      label: t("sidebar.chatbot"),
       icon: "i-lucide-message-square",
       to: "/chatbot",
       onSelect: () => {
@@ -92,7 +138,7 @@ const links = [
   ],
   [
     {
-      label: "Profile",
+      label: t("sidebar.profile"),
       icon: "i-lucide-user",
       to: "/profile",
       onSelect: () => {
@@ -100,7 +146,7 @@ const links = [
       },
     },
     {
-      label: "Settings",
+      label: t("sidebar.settings"),
       icon: "i-lucide-settings",
       to: "/settings",
       onSelect: () => {
@@ -108,15 +154,19 @@ const links = [
       },
     },
   ],
-] satisfies NavigationMenuItem[][];
+]);
 
 const groups = computed(() => [
   {
     id: "links",
     label: "Go to",
-    items: links.flat(),
+    items: links.value.flat(),
   },
 ]);
+
+const closeNotificationsPanel = () => {
+  showNotificationsPanel.value = false;
+};
 </script>
 
 <template>
@@ -167,10 +217,10 @@ const groups = computed(() => [
         <!-- Overview Section -->
         <div
           v-if="!collapsed"
-          class="px-3 mb-2 transition-opacity duration-300 ease-in-out"
+          class="px-3 mt-2 transition-opacity duration-300 ease-in-out"
         >
           <p class="text-xs font-semibold text-muted uppercase tracking-wider">
-            Overview
+            {{ t("sidebar.overview") }}
           </p>
         </div>
         <UNavigationMenu
@@ -185,10 +235,10 @@ const groups = computed(() => [
         <!-- Workspace Section -->
         <div
           v-if="!collapsed"
-          class="px-3 mb-2 transition-opacity duration-300 ease-in-out"
+          class="px-3 transition-opacity duration-300 ease-in-out"
         >
           <p class="text-xs font-semibold text-muted uppercase tracking-wider">
-            Workspace
+            {{ t("sidebar.workspace") }}
           </p>
         </div>
         <UNavigationMenu
@@ -197,16 +247,15 @@ const groups = computed(() => [
           orientation="vertical"
           tooltip
           popover
-          class="mb-4"
         />
 
         <!-- Integrations Section -->
         <div
           v-if="!collapsed"
-          class="px-3 mb-2 transition-opacity duration-300 ease-in-out"
+          class="px-3 mt-2 transition-opacity duration-300 ease-in-out"
         >
           <p class="text-xs font-semibold text-muted uppercase tracking-wider">
-            Integrations
+            {{ t("sidebar.integrations") }}
           </p>
         </div>
         <UNavigationMenu
@@ -215,33 +264,67 @@ const groups = computed(() => [
           orientation="vertical"
           tooltip
           popover
-          class="mb-auto"
+        />
+
+        <!-- AI Section -->
+        <div
+          v-if="!collapsed"
+          class="px-3 mt-2 transition-opacity duration-300 ease-in-out"
+        >
+          <p class="text-xs font-semibold text-muted uppercase tracking-wider">
+            {{ t("sidebar.ai") }}
+          </p>
+        </div>
+
+        <UNavigationMenu
+          :collapsed="collapsed"
+          :items="links[3]"
+          orientation="vertical"
+          tooltip
+          popover
         />
 
         <!-- Settings Section -->
         <div
           v-if="!collapsed"
-          class="px-3 mb-2 mt-auto transition-opacity duration-300 ease-in-out"
+          class="px-3 mt-2 transition-opacity duration-300 ease-in-out"
         >
           <p class="text-xs font-semibold text-muted uppercase tracking-wider">
-            Settings
+            {{ t("sidebar.settings") }}
           </p>
         </div>
+
+        <!-- Profile & Settings -->
         <UNavigationMenu
+          v-if="!collapsed"
           :collapsed="collapsed"
-          :items="links[3]"
+          :items="links[4]"
           orientation="vertical"
           tooltip
         />
       </template>
 
       <template #footer="{ collapsed }">
-        <UserMenu :collapsed="collapsed" />
+        <div class="space-y-3 w-full overflow-hidden min-w-0">
+          <UserMenu :collapsed="collapsed" />
+        </div>
       </template>
     </UDashboardSidebar>
 
     <UDashboardSearch :groups="groups" />
 
     <slot />
+
+    <ClientOnly>
+      <!-- Toast Notifications -->
+      <NotificationToast />
+
+      <!-- Notifications Panel -->
+      <NotificationPanel
+        :open="showNotificationsPanel"
+        @update:open="showNotificationsPanel = $event"
+        @close="closeNotificationsPanel"
+      />
+    </ClientOnly>
   </UDashboardGroup>
 </template>

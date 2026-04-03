@@ -1,8 +1,9 @@
 ﻿<script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import DashboardStats from "~/components/dashboard/DashboardStats.vue";
 import DashboardCharts from "~/components/dashboard/DashboardCharts.vue";
 import DashboardLists from "~/components/dashboard/DashboardLists.vue";
+import ProductivityStats from "~/components/dashboard/ProductivityStats.vue";
 
 /* =====================
    Types
@@ -47,19 +48,49 @@ interface Project {
 ===================== */
 const api = useApi();
 const { user } = useAuth();
+const { t } = useI18n();
 
 /* =====================
-   State
+   Data Fetching with useAsyncData (SSR + Parallel)
 ===================== */
-const pages = ref<Page[]>([]);
+// Fetch primary dashboard data in parallel with SSR support
+const { data: pages, pending: pagesLoading } = await useAsyncData<Page[]>(
+  "dashboard-pages",
+  () => api.get<Page[]>("/documentation"),
+  { server: true, lazy: false }
+);
+
+const { data: projects, pending: projectsLoading } = await useAsyncData<Project[]>(
+  "dashboard-projects",
+  () => api.get<Project[]>("/projects"),
+  { server: true, lazy: false }
+);
+
+const { data: publishedArticles, pending: articlesLoading } = await useAsyncData<Page[]>(
+  "dashboard-articles",
+  () => api.get<Page[]>("/documentation/published"),
+  { server: true, lazy: false }
+);
+
+// Fetch GitHub repos in background (non-blocking, client-side only)
 const githubRepos = ref<GithubRepo[]>([]);
-const projects = ref<Project[]>([]);
-const publishedArticles = ref<Page[]>([]);
-const loading = ref(true);
-const articlesLoading = ref(true);
+const { execute: fetchGithubRepos } = await useAsyncData<GithubRepo[]>(
+  "dashboard-github",
+  () => api.get<GithubRepo[]>("/github/repos"),
+  { 
+    server: false, // Client-side only
+    lazy: true,    // Non-blocking
+    immediate: true,
+    default: () => [],
+  }
+);
+
+// Combine loading states
+const loading = computed(() => pagesLoading.value || projectsLoading.value);
 
 // Animation states
 const showHeader = ref(false);
+const showProductivity = ref(false);
 const showStats = ref(false);
 const showCharts = ref(false);
 const showLists = ref(false);
@@ -67,56 +98,37 @@ const showLists = ref(false);
 /* =====================
    Lifecycle
 ===================== */
-onMounted(async () => {
+onMounted(() => {
   // Start header animation immediately
   setTimeout(() => {
     showHeader.value = true;
   }, 100);
 
-  try {
-    const [pagesData, reposData, projectsData, articlesData] =
-      await Promise.all([
-        api.get<Page[]>("/documentation"),
-        api.get<GithubRepo[]>("/github/repos"),
-        api.get<Project[]>("/projects"),
-        api.get<Page[]>("/documentation/published"),
-      ]);
-
-    console.log("[Dashboard] Pages:", pagesData);
-    console.log("[Dashboard] Published articles:", articlesData);
-
-    pages.value = pagesData;
-    githubRepos.value = reposData;
-    projects.value = projectsData;
-    publishedArticles.value = articlesData;
-  } catch (error) {
-    console.error("Failed to load dashboard data:", error);
-  } finally {
-    loading.value = false;
-    articlesLoading.value = false;
-
-    // Staggered animations after loading
-    setTimeout(() => {
-      showStats.value = true;
-    }, 200);
-    setTimeout(() => {
-      showCharts.value = true;
-    }, 400);
-    setTimeout(() => {
-      showLists.value = true;
-    }, 600);
-  }
+  // Animations for other sections
+  setTimeout(() => {
+    showProductivity.value = true;
+  }, 50);
+  setTimeout(() => {
+    showStats.value = true;
+  }, 100);
+  setTimeout(() => {
+    showCharts.value = true;
+  }, 150);
+  setTimeout(() => {
+    showLists.value = true;
+  }, 200);
 });
 </script>
 
 <template>
   <UDashboardPanel id="dashboard">
     <template #header>
-      <UDashboardNavbar title="Dashboard">
+      <AppNavbar :title="t('sidebar.dashboard')">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+        <!-- The right slot with our individual icons were handled by AppNavbar now -->
+      </AppNavbar>
     </template>
 
     <template #body>
@@ -132,7 +144,8 @@ onMounted(async () => {
         >
           <div class="flex items-center gap-2">
             <h1 class="text-3xl font-bold">
-              Welcome back, {{ user?.name || "Developer" }}
+              {{ t("dashboard.welcomeBack") }},
+              {{ user?.name || t("dashboard.developer") }}
             </h1>
             <UIcon
               name="i-lucide-sparkles"
@@ -140,8 +153,7 @@ onMounted(async () => {
             />
           </div>
           <p class="text-muted mt-1">
-            Build your developer portfolio with Notion-style pages and GitHub
-            integration
+            {{ t("dashboard.welcomeMessage") }}
           </p>
         </div>
 
@@ -164,21 +176,24 @@ onMounted(async () => {
         </div>
 
         <template v-else>
-          <!-- Stats -->
+          <!-- Productivity Stats (4 cards grid) -->
+          <ProductivityStats :show-stats="showProductivity" />
+
+          <!-- Stats Grid (4 cards) -->
           <DashboardStats
-            :pages="pages"
+            :pages="pages || []"
             :github-repos="githubRepos"
-            :projects="projects"
+            :projects="projects || []"
             :show-stats="showStats"
           />
 
           <!-- Charts -->
-          <DashboardCharts :projects="projects" :show-charts="showCharts" />
+          <DashboardCharts :projects="projects || []" :show-charts="showCharts" />
 
           <!-- Lists -->
           <DashboardLists
-            :pages="pages"
-            :projects="projects"
+            :pages="pages || []"
+            :projects="projects || []"
             :github-repos="githubRepos"
             :show-lists="showLists"
           />

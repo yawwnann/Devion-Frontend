@@ -2,7 +2,13 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  modules: ['@nuxt/eslint', '@nuxt/ui', '@vueuse/nuxt', '@nuxtjs/color-mode'],
+  modules: [
+    '@nuxt/eslint',
+    '@nuxt/ui',
+    '@vueuse/nuxt',
+    '@nuxtjs/color-mode',
+    '@nuxtjs/i18n'
+  ],
 
   devtools: {
     enabled: true
@@ -14,6 +20,18 @@ export default defineNuxtConfig({
     preference: 'system',
     fallback: 'dark',
     classSuffix: ''
+  },
+
+  i18n: {
+    locales: [
+      { code: 'id', name: 'Bahasa Indonesia', file: 'id.json' },
+      { code: 'en', name: 'English', file: 'en.json' }
+    ],
+    // lazy: false,
+    langDir: 'locales/',
+    defaultLocale: 'id',
+    strategy: 'no_prefix',
+    detectBrowserLanguage: false
   },
 
   runtimeConfig: {
@@ -34,7 +52,11 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2024-07-11',
-  vite: { plugins: [tailwindcss()] },
+  vite: { 
+    plugins: [
+      tailwindcss() 
+    ] 
+  },
 
   eslint: {
     config: {

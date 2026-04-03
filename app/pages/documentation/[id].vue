@@ -32,6 +32,7 @@ const saving = ref(false);
 const markdownContent = ref("");
 const markdownBlockId = ref<string | null>(null);
 const isEditing = ref(false);
+const blocks = ref<Block[]>([]);
 
 const updateTitle = async (newTitle: string) => {
   if (!page.value || newTitle === page.value.title) return;
@@ -123,6 +124,7 @@ onMounted(async () => {
     ]);
     page.value = pageData;
     pages.value = pagesData;
+    blocks.value = blocksData;
 
     // Load existing markdown content if exists
     const markdownBlock = blocksData.find((b) => b.type === "markdown");

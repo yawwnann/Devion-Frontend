@@ -31,6 +31,9 @@ const items = computed<DropdownMenuItem[][]>(() => [
       type: "label",
       label: displayUser.value.name,
       avatar: displayUser.value.avatar,
+      ui: {
+        label: 'truncate'
+      }
     },
   ],
   [
@@ -91,18 +94,21 @@ const items = computed<DropdownMenuItem[][]>(() => [
     <UButton
       v-bind="{
         ...displayUser,
-        label: collapsed ? undefined : displayUser.name,
         trailingIcon: collapsed ? undefined : 'i-lucide-chevrons-up-down',
       }"
       color="neutral"
       variant="ghost"
       block
       :square="collapsed"
-      class="data-[state=open]:bg-elevated"
+      class="data-[state=open]:bg-elevated overflow-hidden w-full"
       :ui="{
-        trailingIcon: 'text-dimmed',
+        trailingIcon: 'text-dimmed shrink-0 ml-auto',
       }"
-    />
+    >
+      <span v-if="!collapsed" class="truncate flex-1 text-left min-w-0">
+        {{ displayUser.name }}
+      </span>
+    </UButton>
   </UDropdownMenu>
 
   <Teleport to="body">
@@ -114,7 +120,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
               <div class="flex items-center gap-3">
                 <!-- Icon -->
                 <div
-                  class="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center"
+                  class="shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center"
                 >
                   <UIcon
                     name="i-lucide-log-out"

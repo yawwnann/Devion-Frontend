@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { t } = useI18n();
+
 const props = defineProps<{
   pages: any[];
   projects: any[];
@@ -19,14 +21,14 @@ const props = defineProps<{
     >
       <template #header>
         <div class="flex items-center justify-between">
-          <h3 class="text-lg font-semibold">Recent Pages</h3>
+          <h3 class="text-lg font-semibold">{{ t('dashboard.recentPages') }}</h3>
           <UButton
             to="/documentation"
             variant="ghost"
             size="xs"
             trailing-icon="i-lucide-arrow-right"
           >
-            View all
+            {{ t('dashboard.viewAll') }}
           </UButton>
         </div>
       </template>
@@ -36,7 +38,7 @@ const props = defineProps<{
           name="i-lucide-file-text"
           class="size-12 text-muted mx-auto mb-3"
         />
-        <p class="text-sm text-muted">No pages yet</p>
+        <p class="text-sm text-muted">{{ t('dashboard.noPages') }}</p>
       </div>
 
       <div v-else class="space-y-3">
@@ -60,7 +62,7 @@ const props = defineProps<{
             variant="subtle"
             size="xs"
           >
-            {{ page.isPublished ? "Published" : "Draft" }}
+            {{ page.isPublished ? t('documentation.published') : t('dashboard.draft') }}
           </UBadge>
         </NuxtLink>
       </div>
@@ -76,14 +78,14 @@ const props = defineProps<{
     >
       <template #header>
         <div class="flex items-center justify-between">
-          <h3 class="text-lg font-semibold">Recent Projects</h3>
+          <h3 class="text-lg font-semibold">{{ t('dashboard.recentProjects') }}</h3>
           <UButton
             to="/projects"
             variant="ghost"
             size="xs"
             trailing-icon="i-lucide-arrow-right"
           >
-            View all
+            {{ t('dashboard.viewAll') }}
           </UButton>
         </div>
       </template>
@@ -93,7 +95,7 @@ const props = defineProps<{
           name="i-lucide-folder-kanban"
           class="size-12 text-muted mx-auto mb-3"
         />
-        <p class="text-sm text-muted">No projects yet</p>
+        <p class="text-sm text-muted">{{ t('dashboard.noProjects') }}</p>
       </div>
 
       <div v-else class="space-y-3">
@@ -111,7 +113,7 @@ const props = defineProps<{
               {{ project.name }}
             </p>
             <p class="text-xs text-muted truncate">
-              {{ project.order || "No client" }}
+              {{ project.order || t('dashboard.noClient') }}
             </p>
           </div>
 
@@ -128,10 +130,10 @@ const props = defineProps<{
           >
             {{
               project.status === "DONE"
-                ? "Done"
+                ? t('dashboard.done')
                 : project.status === "IN_PROGRESS"
-                  ? "In Progress"
-                  : "To Do"
+                  ? t('dashboard.inProgress')
+                  : t('dashboard.toDo')
             }}
           </UBadge>
         </div>
@@ -147,11 +149,11 @@ const props = defineProps<{
       :style="{ transitionDelay: '200ms' }"
     >
       <template #header>
-        <h3 class="text-lg font-semibold">Top GitHub Projects</h3>
+        <h3 class="text-lg font-semibold">{{ t('dashboard.topGithubProjects') }}</h3>
       </template>
 
       <div v-if="githubRepos.length === 0" class="text-center py-8">
-        <p class="text-sm text-muted">No repositories synced</p>
+        <p class="text-sm text-muted">{{ t('dashboard.noRepositories') }}</p>
       </div>
 
       <div v-else class="space-y-3">
@@ -169,7 +171,7 @@ const props = defineProps<{
           <div>
             <p class="font-medium truncate">{{ repo.name }}</p>
             <p class="text-xs text-muted truncate">
-              {{ repo.description || "No description" }}
+              {{ repo.description || t('dashboard.noDescription') }}
             </p>
           </div>
 

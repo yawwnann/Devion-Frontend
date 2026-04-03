@@ -19,6 +19,8 @@ const props = defineProps<{
   showCharts: boolean;
 }>();
 
+const { t } = useI18n();
+
 // Custom Crosshair Plugin
 const crosshairPlugin = {
   id: "crosshair",
@@ -89,8 +91,8 @@ const projectsByCategory = computed(() => {
       categoryMap.set(name, (categoryMap.get(name) || 0) + 1);
     } else {
       categoryMap.set(
-        "Uncategorized",
-        (categoryMap.get("Uncategorized") || 0) + 1,
+        t('dashboard.uncategorized'),
+        (categoryMap.get(t('dashboard.uncategorized')) || 0) + 1,
       );
     }
   });
@@ -239,8 +241,8 @@ const barChartOptions = {
       <template #header>
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="text-lg font-semibold">Projects Per Month</h3>
-            <p class="text-sm text-muted mt-1">Last 6 months activity</p>
+            <h3 class="text-lg font-semibold">{{ t('dashboard.projectsPerMonth') }}</h3>
+            <p class="text-sm text-muted mt-1">{{ t('dashboard.last6MonthsActivity') }}</p>
           </div>
           <div class="p-2 bg-orange-500/10 rounded-lg">
             <UIcon name="i-lucide-trending-up" class="size-5 text-orange-500" />
@@ -272,8 +274,8 @@ const barChartOptions = {
       <template #header>
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="text-lg font-semibold">Projects by Category</h3>
-            <p class="text-sm text-muted mt-1">Distribution overview</p>
+            <h3 class="text-lg font-semibold">{{ t('dashboard.projectsByCategory') }}</h3>
+            <p class="text-sm text-muted mt-1">{{ t('dashboard.distributionOverview') }}</p>
           </div>
           <div class="p-2 bg-blue-500/10 rounded-lg">
             <UIcon name="i-lucide-bar-chart-3" class="size-5 text-blue-500" />

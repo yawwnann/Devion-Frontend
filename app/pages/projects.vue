@@ -21,18 +21,65 @@ const api = useApi();
 const { colorOptions, statusOptions, getBadgeClasses, getStatusColor } =
   useProjectColors();
 
-const projects = ref<Project[]>([]);
-const categories = ref<Category[]>([]);
-const paymentMethods = ref<PaymentMethod[]>([]);
-const pageSettings = ref<PageSettings>({
-  id: "",
-  cover: null,
-  icon: null,
-  title: "DATA PROJECT",
-  description: null,
+/* =====================
+   Data Fetching with useAsyncData (SSR + Parallel)
+===================== */
+const { data: projectsData, pending: projectsLoading, refresh: refreshProjects } = await useAsyncData<Project[]>(
+  "projects-list",
+  () => api.get<Project[]>("/projects"),
+  { server: true, lazy: false, default: () => [] }
+);
+
+const { data: categoriesData, pending: categoriesLoading } = await useAsyncData<Category[]>(
+  "project-categories",
+  () => api.get<Category[]>("/project-categories"),
+  { server: true, lazy: false, default: () => [] }
+);
+
+const { data: paymentMethodsData, pending: paymentMethodsLoading } = await useAsyncData<PaymentMethod[]>(
+  "payment-methods",
+  () => api.get<PaymentMethod[]>("/payment-methods"),
+  { server: true, lazy: false, default: () => [] }
+);
+
+const { data: pageSettingsData, pending: settingsLoading } = await useAsyncData<PageSettings>(
+  "project-settings",
+  () => api.get<PageSettings>("/projects/settings"),
+  { 
+    server: true, 
+    lazy: false, 
+    default: () => ({
+      id: "",
+      cover: null,
+      icon: null,
+      title: "DATA PROJECT",
+      description: null,
+    })
+  }
+);
+
+// Reactive refs that sync with async data
+const projects = computed({
+  get: () => projectsData.value,
+  set: (val) => { projectsData.value = val; }
 });
 
-const loading = ref(true);
+const categories = computed({
+  get: () => categoriesData.value,
+  set: (val) => { categoriesData.value = val; }
+});
+
+const paymentMethods = computed({
+  get: () => paymentMethodsData.value,
+  set: (val) => { paymentMethodsData.value = val; }
+});
+
+const pageSettings = computed({
+  get: () => pageSettingsData.value,
+  set: (val) => { pageSettingsData.value = val; }
+});
+
+const loading = computed(() => projectsLoading.value || categoriesLoading.value || paymentMethodsLoading.value);
 const showModal = ref(false);
 const showCategoryModal = ref(false);
 const showPaymentModal = ref(false);
@@ -181,25 +228,6 @@ const usedPaymentMethods = computed(() => {
     .filter((pm) => paymentIds.has(pm.id))
     .sort((a, b) => a.name.localeCompare(b.name));
 });
-
-const loadData = async () => {
-  loading.value = true;
-  try {
-    const [p, c, pm, s] = await Promise.all([
-      api.get<Project[]>("/projects"),
-      api.get<Category[]>("/project-categories"),
-      api.get<PaymentMethod[]>("/payment-methods"),
-      api.get<PageSettings>("/projects/settings"),
-    ]);
-    projects.value = p;
-    // Sort categories and payment methods alphabetically
-    categories.value = c.sort((a, b) => a.name.localeCompare(b.name));
-    paymentMethods.value = pm.sort((a, b) => a.name.localeCompare(b.name));
-    pageSettings.value = s;
-  } finally {
-    loading.value = false;
-  }
-};
 
 const handleCrop = ({ canvas }: { canvas: HTMLCanvasElement }) => {
   // Cover uses h-52 (208px height) with full width
@@ -791,18 +819,16 @@ const importFile = async (file: File) => {
     importing.value = false;
   }
 };
-
-onMounted(loadData);
 </script>
 
 <template>
   <UDashboardPanel id="projects">
     <template #header>
-      <UDashboardNavbar title="Projects">
+      <AppNavbar title="Projects">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

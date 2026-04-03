@@ -450,7 +450,7 @@ onMounted(async () => {
 <template>
   <UDashboardPanel id="github">
     <template #header>
-      <UDashboardNavbar title="GitHub Repos">
+      <AppNavbar title="GitHub Repos">
         <template #logo>
           <UIcon name="i-lucide-github" class="size-5" />
         </template>
@@ -487,7 +487,7 @@ onMounted(async () => {
             </UButton>
           </div>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

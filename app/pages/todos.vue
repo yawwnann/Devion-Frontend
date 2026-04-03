@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import confetti from "canvas-confetti";
 import TodoPageHeader from "~/components/todos/TodoPageHeader.vue";
 import TodoColumn from "~/components/todos/TodoColumn.vue";
@@ -12,22 +12,55 @@ import type {
 
 const api = useApi();
 
+/* =====================
+   Data Fetching with useAsyncData (SSR + Parallel)
+===================== */
+const { data: weekData, pending: weekLoading, refresh: refreshWeek } = await useAsyncData<TodoWeek>(
+  "todos-current-week",
+  () => api.get<TodoWeek>("/todos/current-week"),
+  { server: true, lazy: false, default: () => null }
+);
+
+const { data: settingsData, pending: settingsLoading } = await useAsyncData<PageSettings>(
+  "todos-settings",
+  () => api.get<PageSettings>("/todos/settings").catch(() => ({
+    id: "",
+    cover: null,
+    icon: null,
+    title: "Weekly To-do List",
+    description: null,
+  })),
+  { 
+    server: true, 
+    lazy: false, 
+    default: () => ({
+      id: "",
+      cover: null,
+      icon: null,
+      title: "Weekly To-do List",
+      description: null,
+    })
+  }
+);
+
+// Reactive refs
+const week = computed({
+  get: () => weekData.value,
+  set: (val) => { weekData.value = val; }
+});
+
+const pageSettings = computed({
+  get: () => settingsData.value,
+  set: (val) => { settingsData.value = val; }
+});
+
+const loading = computed(() => weekLoading.value);
+
 // State
-const week = ref<TodoWeek | null>(null);
-const loading = ref(true);
 const newTodoTitle = ref("");
 const selectedPriority = ref("MEDIUM");
 const addingToColumn = ref<string | null>(null);
 const newColumnTaskTitle = ref("");
-
-// Page Settings
-const pageSettings = ref<PageSettings>({
-  id: "",
-  icon: null,
-  title: "Weekly To-do List",
-  description: null,
-  cover: null,
-});
 
 const editingTitle = ref(false);
 const editingDescription = ref(false);
@@ -119,25 +152,7 @@ const completionStats = computed(() => {
 
 // Methods
 const loadWeek = async () => {
-  loading.value = true;
-  try {
-    const [weekData, settings] = await Promise.all([
-      api.get<TodoWeek>("/todos/current-week"),
-      api.get<PageSettings>("/todos/settings").catch(() => ({
-        id: "",
-        cover: null,
-        icon: null,
-        title: "Weekly To-do List",
-        description: null,
-      })),
-    ]);
-    week.value = weekData;
-    pageSettings.value = settings;
-  } catch (e) {
-    console.error("Failed to load week:", e);
-  } finally {
-    loading.value = false;
-  }
+  await refreshWeek();
 };
 
 const addTodo = async () => {
@@ -271,14 +286,12 @@ const updateDescription = async () => {
     console.error("Failed to update description:", e);
   }
 };
-
-onMounted(loadWeek);
 </script>
 
 <template>
   <UDashboardPanel id="todos">
     <template #header>
-      <UDashboardNavbar title="Board">
+      <AppNavbar title="Board">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -315,7 +328,7 @@ onMounted(loadWeek);
             </UButton>
           </div>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

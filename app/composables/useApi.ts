@@ -1,60 +1,75 @@
+import { ofetch, type FetchOptions } from "ofetch";
 import { mockApi } from "~/utils/mockApi";
 
 const API_URL = "http://localhost:3000/api";
 
-export const useApi = () => {
+// Shared token state - single source of truth
+let token: ReturnType<typeof useCookie<string | null>>;
+let refreshToken: ReturnType<typeof useCookie<string | null>>;
+
+const getTokenCookies = () => {
+  if (!token) {
+    token = useCookie<string | null>("auth_token", {
+      expires: new Date(Date.now() + 15 * 60 * 1000),
+      sameSite: "lax",
+      secure: import.meta.env.PROD,
+      path: "/",
+    });
+  }
+  if (!refreshToken) {
+    refreshToken = useCookie<string | null>("refresh_token", {
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      sameSite: "lax",
+      secure: import.meta.env.PROD,
+      path: "/",
+    });
+  }
+  return { token, refreshToken };
+};
+
+const updateTokens = (
+  newAccessToken?: string | null,
+  newRefreshToken?: string | null,
+) => {
+  const { token: t, refreshToken: rt } = getTokenCookies();
+  if (newAccessToken) {
+    t.value = newAccessToken;
+  }
+  if (newRefreshToken) {
+    rt.value = newRefreshToken;
+  }
+};
+
+// Create the API client using $fetch.create()
+const createApiClient = () => {
   const config = useRuntimeConfig();
   const useMock = config.public.useMock === "true";
-  const token = useCookie("auth_token");
-  const refreshToken = useCookie("refresh_token");
+  const { token: tokenCookie, refreshToken: refreshCookie } = getTokenCookies();
 
-  const getToken = () => {
-    const token = useCookie("auth_token");
-    return token.value;
-  };
+  // Mock API client
+  if (useMock) {
+    const mockFetch = async <T>(endpoint: string, options: FetchOptions = {}): Promise<T> => {
+      console.log("[API Mock] Calling:", endpoint);
 
-  const updateTokens = (
-    newAccessToken?: string | null,
-    newRefreshToken?: string | null,
-  ) => {
-    if (newAccessToken) {
-      token.value = newAccessToken;
-    }
-    if (newRefreshToken) {
-      refreshToken.value = newRefreshToken;
-    }
-  };
-
-  const fetchApi = async <T>(
-    endpoint: string,
-    options: RequestInit = {},
-    isRetry = false,
-  ): Promise<T> => {
-    // Mock mode
-    if (useMock) {
-      console.log("🎭 Mock API:");
-
-      // Parse endpoint and method
-      const method = options.method || "GET";
+      const method = (options.method || "GET").toUpperCase();
       const parts = endpoint.split("/").filter(Boolean);
 
       // Auth endpoints
-
       if (parts[0] === "auth") {
         if (parts[1] === "login" && method === "POST") {
-          const body = JSON.parse(options.body as string);
+          const body = JSON.parse((options.body as string) || "{}");
           return mockApi.login(body.email, body.password) as Promise<T>;
         }
         if (parts[1] === "register" && method === "POST") {
-          const body = JSON.parse(options.body as string);
-          return mockApi.register(
-            body.name,
-            body.email,
-            body.password,
-          ) as Promise<T>;
+          const body = JSON.parse((options.body as string) || "{}");
+          return mockApi.register(body.name, body.email, body.password) as Promise<T>;
         }
         if (parts[1] === "me") {
           return mockApi.getMe() as Promise<T>;
+        }
+        if (parts[1] === "refresh" && method === "POST") {
+          const body = JSON.parse((options.body as string) || "{}");
+          return mockApi.refresh(body.refreshToken) as Promise<T>;
         }
         if (parts[1] === "statistics" && method === "GET") {
           return mockApi.getStatistics() as Promise<T>;
@@ -63,16 +78,14 @@ export const useApi = () => {
 
       // Pages endpoints
       if (parts[0] === "pages") {
-        if (!parts[1] && method === "GET")
-          return mockApi.getPages() as Promise<T>;
-        if (parts[1] && method === "GET")
-          return mockApi.getPage(parts[1]) as Promise<T>;
+        if (!parts[1] && method === "GET") return mockApi.getPages() as Promise<T>;
+        if (parts[1] && method === "GET") return mockApi.getPage(parts[1]) as Promise<T>;
         if (!parts[1] && method === "POST") {
-          const body = JSON.parse(options.body as string);
+          const body = JSON.parse((options.body as string) || "{}");
           return mockApi.createPage(body) as Promise<T>;
         }
         if (parts[1] && method === "PATCH") {
-          const body = JSON.parse(options.body as string);
+          const body = JSON.parse((options.body as string) || "{}");
           return mockApi.updatePage(parts[1], body) as Promise<T>;
         }
         if (parts[1] && method === "DELETE") {
@@ -93,11 +106,11 @@ export const useApi = () => {
           return mockApi.getBlocks(parts[2]) as Promise<T>;
         }
         if (!parts[1] && method === "POST") {
-          const body = JSON.parse(options.body as string);
+          const body = JSON.parse((options.body as string) || "{}");
           return mockApi.createBlock(body) as Promise<T>;
         }
         if (parts[1] && method === "PATCH") {
-          const body = JSON.parse(options.body as string);
+          const body = JSON.parse((options.body as string) || "{}");
           return mockApi.updateBlock(parts[1], body) as Promise<T>;
         }
         if (parts[1] && method === "DELETE") {
@@ -113,9 +126,17 @@ export const useApi = () => {
         if (parts[1] === "sync" && method === "POST") {
           return mockApi.syncGitHubRepos() as Promise<T>;
         }
+        if (parts[1] === "sync-issues" && method === "POST") {
+          const body = JSON.parse((options.body as string) || "{}");
+          return mockApi.syncGitHubIssues(body.projectId, body.githubRepo) as Promise<T>;
+        }
         if (parts[1] === "username" && method === "POST") {
-          const body = JSON.parse(options.body as string);
+          const body = JSON.parse((options.body as string) || "{}");
           return mockApi.setGitHubUsername(body.username) as Promise<T>;
+        }
+        if (parts[1] === "link-repo" && method === "POST") {
+          const body = JSON.parse((options.body as string) || "{}");
+          return mockApi.linkGitHubRepo(body.projectId, body.githubRepo) as Promise<T>;
         }
       }
 
@@ -124,36 +145,38 @@ export const useApi = () => {
         if (parts[1] === "stats" && method === "GET") {
           return mockApi.getStats() as Promise<T>;
         }
-        const pageId = new URL(`http://dummy${endpoint}`).searchParams.get(
-          "pageId",
-        );
+        const pageId = new URL(`http://dummy${endpoint}`).searchParams.get("pageId");
         if (method === "GET") {
           return mockApi.getAnalytics(pageId!) as Promise<T>;
         }
         if (method === "POST") {
-          const body = JSON.parse(options.body as string);
-          return mockApi.trackEvent(
-            pageId!,
-            body.event,
-            body.metadata,
-          ) as Promise<T>;
+          const body = JSON.parse((options.body as string) || "{}");
+          return mockApi.trackEvent(pageId!, body.event, body.metadata) as Promise<T>;
         }
       }
 
       // Projects endpoints
       if (parts[0] === "projects") {
-        if (!parts[1] && method === "GET")
-          return mockApi.getProjects() as Promise<T>;
-        if (parts[1] === "stats" && method === "GET")
-          return mockApi.getProjectStats() as Promise<T>;
-        if (parts[1] && method === "GET")
-          return mockApi.getProject(parts[1]) as Promise<T>;
+        if (!parts[1] && method === "GET") return mockApi.getProjects() as Promise<T>;
+        if (parts[1] === "stats" && method === "GET") return mockApi.getProjectStats() as Promise<T>;
+        if (parts[1] === "settings" && method === "GET") return mockApi.getProjectSettings() as Promise<T>;
+        if (parts[1] === "settings" && method === "PATCH") {
+          const body = JSON.parse((options.body as string) || "{}");
+          return mockApi.updateProjectSettings(body) as Promise<T>;
+        }
+        if (parts[1] === "settings" && method === "DELETE") {
+          return mockApi.deleteProjectCover() as Promise<T>;
+        }
+        if (parts[1] === "settings" && parts[2] === "cover" && method === "POST") {
+          return mockApi.uploadProjectCover() as Promise<T>;
+        }
+        if (parts[1] && method === "GET") return mockApi.getProject(parts[1]) as Promise<T>;
         if (!parts[1] && method === "POST") {
-          const body = JSON.parse(options.body as string);
+          const body = JSON.parse((options.body as string) || "{}");
           return mockApi.createProject(body) as Promise<T>;
         }
         if (parts[1] && method === "PATCH") {
-          const body = JSON.parse(options.body as string);
+          const body = JSON.parse((options.body as string) || "{}");
           return mockApi.updateProject(parts[1], body) as Promise<T>;
         }
         if (parts[1] && method === "DELETE") {
@@ -161,186 +184,232 @@ export const useApi = () => {
         }
       }
 
-      throw new Error(`Mock endpoint not implemented: ${method} ${endpoint}`);
-    }
+      // Project categories endpoints
+      if (parts[0] === "project-categories") {
+        if (!parts[1] && method === "GET") return mockApi.getProjectCategories() as Promise<T>;
+        if (!parts[1] && method === "POST") {
+          const body = JSON.parse((options.body as string) || "{}");
+          return mockApi.createProjectCategory(body) as Promise<T>;
+        }
+        if (parts[1] && method === "PATCH") {
+          const body = JSON.parse((options.body as string) || "{}");
+          return mockApi.updateProjectCategory(parts[1], body) as Promise<T>;
+        }
+        if (parts[1] && method === "DELETE") {
+          return mockApi.deleteProjectCategory(parts[1]) as Promise<T>;
+        }
+      }
 
-    // Real API mode
-    const tokenValue = getToken();
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-      ...(tokenValue ? { Authorization: `Bearer ${tokenValue}` } : {}),
-      ...options.headers,
+      // Payment methods endpoints
+      if (parts[0] === "payment-methods") {
+        if (!parts[1] && method === "GET") return mockApi.getPaymentMethods() as Promise<T>;
+        if (!parts[1] && method === "POST") {
+          const body = JSON.parse((options.body as string) || "{}");
+          return mockApi.createPaymentMethod(body) as Promise<T>;
+        }
+        if (parts[1] && method === "PATCH") {
+          const body = JSON.parse((options.body as string) || "{}");
+          return mockApi.updatePaymentMethod(parts[1], body) as Promise<T>;
+        }
+        if (parts[1] && method === "DELETE") {
+          return mockApi.deletePaymentMethod(parts[1]) as Promise<T>;
+        }
+      }
+
+      // Todos endpoints
+      if (parts[0] === "todos") {
+        if (parts[1] === "current-week" && method === "GET") {
+          return mockApi.getCurrentWeek() as Promise<T>;
+        }
+        if (parts[1] === "new-week" && method === "POST") {
+          return mockApi.createNewWeek() as Promise<T>;
+        }
+        if (parts[1] === "settings" && method === "GET") {
+          return mockApi.getTodoSettings() as Promise<T>;
+        }
+        if (parts[1] === "settings" && method === "PATCH") {
+          const body = JSON.parse((options.body as string) || "{}");
+          return mockApi.updateTodoSettings(body) as Promise<T>;
+        }
+        if (parts[1] === "reorder" && method === "POST") {
+          const body = JSON.parse((options.body as string) || "{}");
+          return mockApi.reorderTodos(body.todoIds) as Promise<T>;
+        }
+        if (!parts[1] && method === "POST") {
+          const body = JSON.parse((options.body as string) || "{}");
+          return mockApi.createTodo(body) as Promise<T>;
+        }
+        if (parts[1] && method === "PATCH") {
+          const body = JSON.parse((options.body as string) || "{}");
+          return mockApi.updateTodo(parts[1], body) as Promise<T>;
+        }
+        if (parts[1] && method === "DELETE") {
+          return mockApi.deleteTodo(parts[1]) as Promise<T>;
+        }
+      }
+
+      // Preferences endpoints
+      if (parts[0] === "preferences") {
+        if (!parts[1] && method === "GET") {
+          return mockApi.getPreferences() as Promise<T>;
+        }
+        if (!parts[1] && method === "PATCH") {
+          const body = JSON.parse((options.body as string) || "{}");
+          return mockApi.updatePreferences(body) as Promise<T>;
+        }
+      }
+
+      // Notifications endpoints
+      if (parts[0] === "notifications") {
+        if (!parts[1] && method === "GET") {
+          return mockApi.getNotifications() as Promise<T>;
+        }
+        if (parts[1] === "unread-count" && method === "GET") {
+          return mockApi.getUnreadCount() as Promise<T>;
+        }
+        if (parts[1] === "mark-all-read" && method === "POST") {
+          return mockApi.markAllRead() as Promise<T>;
+        }
+        if (parts[1] && method === "PATCH") {
+          return mockApi.markNotificationRead(parts[1]) as Promise<T>;
+        }
+      }
+
+      // Articles endpoints (alias for documentation/published)
+      if (parts[0] === "articles" && method === "GET") {
+        return mockApi.getPublishedPages() as Promise<T>;
+      }
+
+      throw new Error(`[API Mock] Endpoint not implemented: ${method} ${endpoint}`);
     };
 
-    const res = await fetch(`${API_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    return {
+      baseURL: API_URL,
+      get: <T>(endpoint: string) => mockFetch<T>(endpoint),
+      post: <T>(endpoint: string, body?: unknown) =>
+        mockFetch<T>(endpoint, { method: "POST", body: JSON.stringify(body) }),
+      patch: <T>(endpoint: string, body?: unknown) =>
+        mockFetch<T>(endpoint, { method: "PATCH", body: JSON.stringify(body) }),
+      delete: <T>(endpoint: string) =>
+        mockFetch<T>(endpoint, { method: "DELETE" }),
+      upload: async <T>(endpoint: string, _formData: FormData): Promise<T> => {
+        // For mock mode, simulate upload
+        return mockApi.uploadProjectCover() as Promise<T>;
+      },
+    };
+  }
 
-    if (!res.ok) {
-      if (res.status === 401 && !isRetry) {
-        // Try to refresh token
+  // Real API client using $fetch.create()
+  const apiClient = ofetch.create({
+    baseURL: API_URL,
+    
+    // Hook: Inject Authorization header before each request
+    onRequest({ options }) {
+      const tokenValue = tokenCookie.value;
+      if (tokenValue) {
+        options.headers = {
+          ...options.headers,
+          Authorization: `Bearer ${tokenValue}`,
+        };
+      }
+    },
+
+    // Hook: Handle token refresh on 401 responses
+    async onResponseError({ response, options, request }) {
+      if (response.status === 401) {
         try {
-          if (!refreshToken.value) throw new Error("No refresh token");
+          if (!refreshCookie.value) {
+            throw new Error("No refresh token");
+          }
 
-          const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
+          console.log("[API] 401 detected, attempting token refresh...");
+
+          // Refresh the token
+          const refreshResponse = await ofetch(`${API_URL}/auth/refresh`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refreshToken: refreshToken.value }),
+            body: { refreshToken: refreshCookie.value },
           });
 
-          if (!refreshRes.ok) throw new Error("Refresh failed");
+          const { accessToken, refreshToken: newRefreshToken } = refreshResponse as Record<string, string>;
+          updateTokens(accessToken, newRefreshToken);
 
-          const refreshData = await refreshRes.json();
-          updateTokens(refreshData.accessToken, refreshData.refreshToken);
+          console.log("[API] Token refreshed, retrying request...");
 
-          // Retry the request with new token explicitly set in headers
-          const retryOptions = {
-            ...options,
+          // Get the request URL
+          const requestUrl = typeof request === "string" 
+            ? request 
+            : request instanceof URL 
+              ? request.toString() 
+              : (request as Request)?.url || "";
+
+          // Retry the original request with new token
+          return ofetch(requestUrl, {
+            method: options.method,
             headers: {
               ...options.headers,
-              Authorization: `Bearer ${refreshData.accessToken}`,
+              Authorization: `Bearer ${accessToken}`,
             },
-          };
-          return fetchApi<T>(endpoint, retryOptions, true);
+            body: options.body,
+          });
         } catch (refreshError) {
-          // Refresh failed, clear tokens and redirect to login
-          token.value = null;
-          refreshToken.value = null;
-          navigateTo("/login");
+          console.error("[API] Token refresh failed:", refreshError);
+          // Clear tokens on refresh failure
+          tokenCookie.value = null;
+          refreshCookie.value = null;
           throw new Error("Authentication failed");
         }
       }
-      let errorMessage = `API Error: ${res.status}`;
-      try {
-        const errorData = await res.json();
-        if (errorData.message) {
-          errorMessage = Array.isArray(errorData.message)
-            ? errorData.message.join(", ")
-            : errorData.message;
-        }
-      } catch (e) {
-        // Ignore json parse error
-      }
-      throw new Error(errorMessage);
-    }
+    },
 
-    // Extract tokens from response headers (auto-refresh from backend)
-    const newAccessToken = res.headers.get("X-Access-Token");
-    const newRefreshToken = res.headers.get("X-Refresh-Token");
-
-    if (newAccessToken || newRefreshToken) {
-      updateTokens(newAccessToken, newRefreshToken);
-    }
-
-    const data = await res.json();
-
-    // Also extract tokens from response body if present (_tokens property)
-    if (data?._tokens) {
-      updateTokens(data._tokens.accessToken, data._tokens.refreshToken);
-      // Remove _tokens from response to avoid leaking to UI
-      delete data._tokens;
-    }
-
-    return data;
-  };
-
-  return {
-    baseURL: API_URL,
-    get: <T>(endpoint: string) => fetchApi<T>(endpoint),
-    post: <T>(endpoint: string, body?: unknown) =>
-      fetchApi<T>(endpoint, { method: "POST", body: JSON.stringify(body) }),
-    patch: <T>(endpoint: string, body?: unknown) =>
-      fetchApi<T>(endpoint, { method: "PATCH", body: JSON.stringify(body) }),
-    delete: <T>(endpoint: string) =>
-      fetchApi<T>(endpoint, { method: "DELETE" }),
-    upload: async <T>(
-      endpoint: string,
-      formData: FormData,
-      isRetry = false,
-    ): Promise<T> => {
-      const tokenValue = getToken();
-      const res = await fetch(`${API_URL}${endpoint}`, {
-        method: "POST",
-        headers: {
-          ...(tokenValue ? { Authorization: `Bearer ${tokenValue}` } : {}),
-        },
-        body: formData,
-      });
-
-      if (!res.ok) {
-        if (res.status === 401 && !isRetry) {
-          try {
-            if (!refreshToken.value) throw new Error("No refresh token");
-
-            const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ refreshToken: refreshToken.value }),
-            });
-
-            if (!refreshRes.ok) throw new Error("Refresh failed");
-
-            const refreshData = await refreshRes.json();
-            updateTokens(refreshData.accessToken, refreshData.refreshToken);
-
-            // Retry with new token explicitly
-            const newHeaders = new Headers();
-            if (formData) {
-              newHeaders.append(
-                "Authorization",
-                `Bearer ${refreshData.accessToken}`,
-              );
-            }
-
-            const retryRes = await fetch(`${API_URL}${endpoint}`, {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${refreshData.accessToken}`,
-              },
-              body: formData,
-            });
-
-            if (!retryRes.ok) {
-              throw new Error(`API Error on retry: ${retryRes.status}`);
-            }
-
-            const newAccessToken = retryRes.headers.get("X-Access-Token");
-            const newRefreshToken = retryRes.headers.get("X-Refresh-Token");
-            if (newAccessToken || newRefreshToken) {
-              updateTokens(newAccessToken, newRefreshToken);
-            }
-            return retryRes.json();
-          } catch (refreshError) {
-            token.value = null;
-            refreshToken.value = null;
-            navigateTo("/login");
-            throw new Error("Authentication failed");
-          }
-        }
-        let errorMessage = `API Error: ${res.status}`;
-        try {
-          const errorData = await res.json();
-          if (errorData.message) {
-            errorMessage = Array.isArray(errorData.message)
-              ? errorData.message.join(", ")
-              : errorData.message;
-          }
-        } catch (e) {
-          // Ignore JSON parse error
-        }
-        throw new Error(errorMessage);
-      }
-
-      // Extract tokens from response headers
-      const newAccessToken = res.headers.get("X-Access-Token");
-      const newRefreshToken = res.headers.get("X-Refresh-Token");
+    // Hook: Extract tokens from response headers
+    onResponse({ response }) {
+      const newAccessToken = response.headers.get("X-Access-Token");
+      const newRefreshToken = response.headers.get("X-Refresh-Token");
 
       if (newAccessToken || newRefreshToken) {
         updateTokens(newAccessToken, newRefreshToken);
       }
 
-      return res.json();
+      // Extract tokens from response body if present (_tokens property)
+      const data = response._data;
+      if (data && typeof data === "object" && "_tokens" in data) {
+        const tokens = (data as Record<string, unknown>)._tokens as Record<string, string> | undefined;
+        if (tokens?.accessToken) {
+          updateTokens(tokens.accessToken, tokens.refreshToken || null);
+          delete (data as Record<string, unknown>)._tokens;
+        }
+      }
+    },
+  });
+
+  return {
+    baseURL: API_URL,
+    get: <T>(endpoint: string) => apiClient<T>(endpoint),
+    post: <T>(endpoint: string, body?: unknown) =>
+      apiClient<T>(endpoint, { method: "POST", body }),
+    patch: <T>(endpoint: string, body?: unknown) =>
+      apiClient<T>(endpoint, { method: "PATCH", body }),
+    delete: <T>(endpoint: string) =>
+      apiClient<T>(endpoint, { method: "DELETE" }),
+    upload: async <T>(endpoint: string, formData: FormData): Promise<T> => {
+      const tokenValue = tokenCookie.value;
+      const headers: HeadersInit = {};
+      if (tokenValue) {
+        headers.Authorization = `Bearer ${tokenValue}`;
+      }
+
+      const response = await ofetch<T>(`${API_URL}${endpoint}`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+
+      return response;
     },
   };
+};
+
+// Export as a composable
+export const useApi = () => {
+  return createApiClient();
 };

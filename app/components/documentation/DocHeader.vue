@@ -16,9 +16,9 @@ const emit = defineEmits<{
 }>();
 
 const statusConfig = {
-  DRAFT: { label: 'Draft', icon: 'i-lucide-file-pen', color: 'gray' as const },
-  PRIVATE: { label: 'Private', icon: 'i-lucide-lock', color: 'orange' as const },
-  PUBLISHED: { label: 'Published', icon: 'i-lucide-globe', color: 'emerald' as const },
+  DRAFT: { label: 'Draft', icon: 'i-lucide-file-pen', color: 'neutral' as const },
+  PRIVATE: { label: 'Private', icon: 'i-lucide-lock', color: 'warning' as const },
+  PUBLISHED: { label: 'Published', icon: 'i-lucide-globe', color: 'success' as const },
 };
 
 const currentStatus = computed(() => props.status || 'DRAFT');

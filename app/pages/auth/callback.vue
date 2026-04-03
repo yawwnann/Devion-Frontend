@@ -23,32 +23,57 @@ onMounted(async () => {
       setTokens(token, refreshToken);
 
       console.log("🟢 [CALLBACK] Waiting for cookies to be set...");
-      // Wait a bit for cookies to be set
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Wait for cookies to be set (increased timeout for reliability)
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       console.log("🟢 [CALLBACK] Fetching user data...");
-      // Fetch user data
-      const userData = await fetchUser();
-      console.log("🟢 [CALLBACK] User data fetched:", !!userData);
+      
+      // Retry logic for fetching user data
+      let userData = null;
+      let lastError = null;
+      const maxRetries = 3;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`🟢 [CALLBACK] Fetch attempt ${attempt}/${maxRetries}...`);
+          userData = await fetchUser();
+          
+          if (userData) {
+            console.log("🟢 [CALLBACK] User data fetched successfully:", userData.email);
+            break; // Success, exit retry loop
+          }
+        } catch (fetchError) {
+          lastError = fetchError;
+          console.warn(`🟡 [CALLBACK] Fetch attempt ${attempt} failed:`, fetchError);
+          
+          if (attempt < maxRetries) {
+            // Wait before retry (exponential backoff)
+            const waitTime = attempt * 500;
+            console.log(`🟡 [CALLBACK] Retrying in ${waitTime}ms...`);
+            await new Promise((resolve) => setTimeout(resolve, waitTime));
+          }
+        }
+      }
 
       if (userData) {
         console.log("🟢 [CALLBACK] Redirecting to dashboard...");
         // Redirect to dashboard
         await navigateTo("/dashboard");
       } else {
-        console.error("🔴 [CALLBACK] Failed to fetch user data");
-        error.value = "Failed to fetch user data";
-        setTimeout(() => navigateTo("/login"), 2000);
+        console.error("🔴 [CALLBACK] Failed to fetch user data after retries");
+        console.error("🔴 [CALLBACK] Last error:", lastError);
+        error.value = "Failed to fetch user data. Please try again.";
+        setTimeout(() => navigateTo("/login"), 3000);
       }
     } catch (err) {
       console.error("🔴 [CALLBACK] Auth callback error:", err);
       error.value = "Authentication failed";
-      setTimeout(() => navigateTo("/login"), 2000);
+      setTimeout(() => navigateTo("/login"), 3000);
     }
   } else {
     console.error("🔴 [CALLBACK] Missing authentication tokens");
     error.value = "Missing authentication tokens";
-    setTimeout(() => navigateTo("/login"), 2000);
+    setTimeout(() => navigateTo("/login"), 3000);
   }
 });
 </script>

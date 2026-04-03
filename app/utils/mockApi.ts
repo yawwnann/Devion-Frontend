@@ -14,12 +14,26 @@ export const mockApi = {
   // Auth
   async login(_email: string, _password: string) {
     await delay(500);
-    return { accessToken: "mock-jwt-token-123" };
+    return {
+      accessToken: "mock-jwt-token-123",
+      refreshToken: "mock-refresh-token-456",
+    };
   },
 
   async register(_name: string, _email: string, _password: string) {
     await delay(500);
-    return { accessToken: "mock-jwt-token-123" };
+    return {
+      accessToken: "mock-jwt-token-123",
+      refreshToken: "mock-refresh-token-456",
+    };
+  },
+
+  async refresh(_refreshToken: string) {
+    await delay(300);
+    return {
+      accessToken: "mock-jwt-token-refreshed-789",
+      refreshToken: "mock-refresh-token-refreshed-012",
+    };
   },
 
   async getMe() {
@@ -252,5 +266,216 @@ export const mockApi = {
       inProgress: mockProjects.filter((p) => p.status === "IN_PROGRESS").length,
       done: mockProjects.filter((p) => p.status === "DONE").length,
     };
+  },
+
+  async getProjectSettings() {
+    await delay(200);
+    return {
+      id: "settings-1",
+      cover: null,
+      icon: null,
+      title: "DATA PROJECT",
+      description: null,
+    };
+  },
+
+  async updateProjectSettings(data: Record<string, unknown>) {
+    await delay(300);
+    return {
+      id: "settings-1",
+      cover: null,
+      icon: null,
+      title: (data.title as string) || "DATA PROJECT",
+      description: (data.description as string) || null,
+    };
+  },
+
+  async deleteProjectCover() {
+    await delay(200);
+    return { success: true };
+  },
+
+  async uploadProjectCover() {
+    await delay(500);
+    return {
+      id: "settings-1",
+      cover: "/mock-cover.jpg",
+      icon: null,
+      title: "DATA PROJECT",
+      description: null,
+    };
+  },
+
+  async getProjectCategories() {
+    await delay(300);
+    return [
+      { id: "cat-1", name: "Web Development", color: "blue" },
+      { id: "cat-2", name: "Mobile App", color: "green" },
+      { id: "cat-3", name: "API", color: "purple" },
+    ];
+  },
+
+  async createProjectCategory(data: Record<string, unknown>) {
+    await delay(300);
+    return {
+      id: `cat-${Date.now()}`,
+      name: data.name,
+      color: data.color || "zinc",
+    };
+  },
+
+  async updateProjectCategory(id: string, data: Record<string, unknown>) {
+    await delay(300);
+    return { id, ...data };
+  },
+
+  async deleteProjectCategory(_id: string) {
+    await delay(300);
+    return { success: true };
+  },
+
+  async getPaymentMethods() {
+    await delay(300);
+    return [
+      { id: "pm-1", name: "Bank Transfer", color: "blue" },
+      { id: "pm-2", name: "PayPal", color: "green" },
+      { id: "pm-3", name: "Cash", color: "yellow" },
+    ];
+  },
+
+  async createPaymentMethod(data: Record<string, unknown>) {
+    await delay(300);
+    return {
+      id: `pm-${Date.now()}`,
+      name: data.name,
+      color: data.color || "zinc",
+    };
+  },
+
+  async updatePaymentMethod(id: string, data: Record<string, unknown>) {
+    await delay(300);
+    return { id, ...data };
+  },
+
+  async deletePaymentMethod(_id: string) {
+    await delay(300);
+    return { success: true };
+  },
+
+  async getCurrentWeek() {
+    await delay(300);
+    return {
+      id: "week-1",
+      userId: mockUser.id,
+      weekStart: new Date(Date.now() - new Date().getDay() * 86400000).toISOString(),
+      weekEnd: new Date(Date.now() + (6 - new Date().getDay()) * 86400000).toISOString(),
+      todos: [],
+    };
+  },
+
+  async createNewWeek() {
+    await delay(500);
+    return {
+      id: `week-${Date.now()}`,
+      userId: mockUser.id,
+      weekStart: new Date().toISOString(),
+      weekEnd: new Date(Date.now() + 6 * 86400000).toISOString(),
+      todos: [],
+    };
+  },
+
+  async getTodoSettings() {
+    await delay(200);
+    return {
+      id: "todo-settings-1",
+      icon: null,
+      title: "Weekly To-do List",
+      description: null,
+      cover: null,
+    };
+  },
+
+  async updateTodoSettings(data: Record<string, unknown>) {
+    await delay(300);
+    return {
+      id: "todo-settings-1",
+      icon: null,
+      title: (data.title as string) || "Weekly To-do List",
+      description: (data.description as string) || null,
+      cover: null,
+    };
+  },
+
+  async reorderTodos(_todoIds: string[]) {
+    await delay(200);
+    return { success: true };
+  },
+
+  async createTodo(data: Record<string, unknown>) {
+    await delay(300);
+    return {
+      id: `todo-${Date.now()}`,
+      userId: mockUser.id,
+      ...data,
+      order: 0,
+      isCompleted: false,
+      createdAt: new Date().toISOString(),
+    };
+  },
+
+  async updateTodo(id: string, data: Record<string, unknown>) {
+    await delay(300);
+    return { id, ...data };
+  },
+
+  async deleteTodo(_id: string) {
+    await delay(300);
+    return { success: true };
+  },
+
+  async getPreferences() {
+    await delay(200);
+    return {
+      theme: "system",
+      language: "id",
+    };
+  },
+
+  async updatePreferences(data: Record<string, unknown>) {
+    await delay(300);
+    return {
+      theme: (data.theme as string) || "system",
+      language: (data.language as string) || "id",
+    };
+  },
+
+  async getNotifications() {
+    await delay(300);
+    return [];
+  },
+
+  async getUnreadCount() {
+    await delay(200);
+    return { count: 0 };
+  },
+
+  async markAllRead() {
+    await delay(200);
+    return { success: true };
+  },
+
+  async markNotificationRead(_id: string) {
+    await delay(200);
+    return { success: true };
+  },
+
+  async syncGitHubIssues(_projectId: string, _githubRepo: string) {
+    await delay(1000);
+    return { synced: 0 };
+  },
+
+  async linkGitHubRepo(_projectId: string, _githubRepo: string) {
+    await delay(500);
+    return { success: true };
   },
 };

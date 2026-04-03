@@ -148,7 +148,7 @@ onMounted(async () => {
 <template>
   <UDashboardPanel id="actions">
     <template #header>
-      <UDashboardNavbar title="GitHub Actions">
+      <AppNavbar title="GitHub Actions">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -176,7 +176,7 @@ onMounted(async () => {
             </UButton>
           </div>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

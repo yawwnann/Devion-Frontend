@@ -1,5 +1,7 @@
 <script setup lang="ts">
-definePageMeta({ layout: false });
+definePageMeta({
+  layout: false,
+});
 
 const api = useApi();
 const { setTokens, fetchUser } = useAuth();

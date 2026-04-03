@@ -1,10 +1,11 @@
 <script setup lang="ts">
-definePageMeta({ layout: false });
+definePageMeta({
+  layout: false,
+});
 
 const api = useApi();
 const { setTokens, fetchUser } = useAuth();
 
-const apiUrl = "http://localhost:3000/api";
 const name = ref("");
 const email = ref("");
 const password = ref("");
@@ -140,8 +141,8 @@ onMounted(() => {
           <!-- Google Button -->
           <button
             type="button"
-            @click="handleGoogleRegister"
             class="flex items-center justify-center gap-3 w-full px-4 py-3 bg-white hover:bg-gray-100 text-black font-medium rounded-full transition-colors"
+            @click="handleGoogleRegister"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24">
               <path

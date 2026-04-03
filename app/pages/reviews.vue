@@ -261,7 +261,7 @@ watch(selectedState, () => fetchPRs());
 <template>
   <UDashboardPanel id="reviews">
     <template #header>
-      <UDashboardNavbar title="Code Review Center">
+      <AppNavbar title="Code Review Center">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -293,7 +293,7 @@ watch(selectedState, () => fetchPRs());
             />
           </div>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #body>

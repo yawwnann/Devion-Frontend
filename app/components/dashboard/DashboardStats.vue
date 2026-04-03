@@ -8,6 +8,8 @@ const props = defineProps<{
   showStats: boolean;
 }>();
 
+const { t } = useI18n();
+
 const publishedPages = computed(() => {
   return props.pages.filter((p) => p.status === "PUBLISHED").length;
 });
@@ -39,11 +41,11 @@ const projectStats = computed(() => {
     >
       <div class="flex items-start justify-between">
         <div>
-          <p class="text-sm text-muted">Portfolio Pages</p>
+          <p class="text-sm text-muted">{{ t('dashboard.portfolioPages') }}</p>
           <p class="text-3xl font-bold mt-2">
             {{ pages.length }}
           </p>
-          <p class="text-sm text-muted mt-2">{{ publishedPages }} published</p>
+          <p class="text-sm text-muted mt-2">{{ publishedPages }} {{ t('dashboard.published') }}</p>
         </div>
         <div class="p-3 bg-blue-500/10 rounded-lg">
           <UIcon name="i-lucide-file-text" class="size-6 text-blue-500" />
@@ -61,11 +63,11 @@ const projectStats = computed(() => {
     >
       <div class="flex items-start justify-between">
         <div>
-          <p class="text-sm text-muted">GitHub Projects</p>
+          <p class="text-sm text-muted">{{ t('dashboard.githubProjects') }}</p>
           <p class="text-3xl font-bold mt-2">
             {{ githubRepos.length }}
           </p>
-          <p class="text-sm text-muted mt-2">{{ totalStars }} total stars</p>
+          <p class="text-sm text-muted mt-2">{{ totalStars }} {{ t('dashboard.totalStars') }}</p>
         </div>
         <div class="p-3 bg-purple-500/10 rounded-lg">
           <UIcon name="i-lucide-github" class="size-6 text-purple-500" />
@@ -83,12 +85,12 @@ const projectStats = computed(() => {
     >
       <div class="flex items-start justify-between">
         <div>
-          <p class="text-sm text-muted">Active Projects</p>
+          <p class="text-sm text-muted">{{ t('dashboard.activeProjects') }}</p>
           <p class="text-3xl font-bold mt-2">
             {{ projectStats.total }}
           </p>
           <p class="text-sm text-muted mt-2">
-            {{ projectStats.inProgress }} in progress
+            {{ projectStats.inProgress }} {{ t('dashboard.inProgress') }}
           </p>
         </div>
         <div class="p-3 bg-orange-500/10 rounded-lg">
@@ -99,33 +101,41 @@ const projectStats = computed(() => {
 
     <!-- CTA -->
     <UCard
-      class="bg-linear-to-br from-primary/10 to-primary/5 border-primary/20 transition-all duration-500 ease-out hover:shadow-lg hover:-translate-y-1"
+      class="transition-all duration-500 ease-out hover:shadow-lg hover:-translate-y-1"
       :class="
         showStats ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
       "
       :style="{ transitionDelay: '300ms' }"
     >
-      <div class="flex flex-col h-full justify-between">
-        <div>
-          <p class="text-sm font-medium">Ready to create?</p>
-          <p class="text-xs text-muted mt-1">Start building your portfolio</p>
+      <div class="flex flex-col h-full">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <p class="text-sm text-muted">{{ t('dashboard.quickActions') }}</p>
+            <p class="text-2xl font-bold mt-1">{{ t('dashboard.ready') }}</p>
+          </div>
+          <div class="p-2 bg-primary-500/10 rounded-lg">
+            <UIcon name="i-lucide-rocket" class="size-5 text-primary-500" />
+          </div>
         </div>
-        <div class="flex gap-2 mt-4">
+        <p class="text-sm text-muted mb-3">{{ t('dashboard.startBuildingPortfolio') }}</p>
+        <div class="flex gap-2 mt-auto">
           <UButton
             to="/documentation"
             icon="i-lucide-plus"
             size="sm"
             color="primary"
+            class="flex-1 justify-center"
           >
-            New Page
+            {{ t('dashboard.page') }}
           </UButton>
           <UButton
             to="/projects"
             icon="i-lucide-folder-plus"
             size="sm"
             variant="outline"
+            class="flex-1 justify-center"
           >
-            New Project
+            {{ t('dashboard.project') }}
           </UButton>
         </div>
       </div>

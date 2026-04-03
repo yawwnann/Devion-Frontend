@@ -78,7 +78,7 @@ onMounted(() => loadContributions());
 <template>
   <UDashboardPanel id="contributions">
     <template #header>
-      <UDashboardNavbar>
+      <AppNavbar>
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
@@ -103,7 +103,7 @@ onMounted(() => loadContributions());
             Refresh
           </UButton>
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
 
     <template #default>
